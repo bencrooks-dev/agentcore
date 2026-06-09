@@ -291,6 +291,7 @@ PYBIND11_MODULE(_marrow, m) {
 
     py::class_<RuntimePlan>(m, "RuntimePlan")
         .def(py::init<>())
+        .def_static("from_json", &RuntimePlan::from_json, py::arg("text"))
         .def("set_meta", &RuntimePlan::set_meta,
              py::arg("version"), py::arg("runtime_plan_id"), py::arg("graph_id"),
              py::arg("name"), py::arg("entrypoint"))
@@ -413,5 +414,6 @@ PYBIND11_MODULE(_marrow, m) {
         .def("policy_decisions",  &ExecutionTrace::policy_decisions)
         .def_property_readonly("has_budget_usage", &ExecutionTrace::has_budget_usage)
         .def("budget_usage",      &ExecutionTrace::budget_usage,
-             py::return_value_policy::copy);
+             py::return_value_policy::copy)
+        .def("to_json",           &ExecutionTrace::to_json);
 }

@@ -151,64 +151,10 @@ def _run_rollback(trace: Any, rollback_plan: dict[str, Any], agents: dict[str, A
 
 
 def _trace_to_dict(trace: Any) -> dict[str, Any]:
-    events = []
-    for e in trace.events():
-        item = {"type": e.type}
-        item.update({k: v for k, v in e.attributes})
-        events.append(item)
-    result: dict[str, Any] = {
-        "trace_id": trace.trace_id,
-        "runtime_plan_id": trace.runtime_plan_id,
-        "input": trace.input if trace.has_input else None,
-        "started_at": trace.started_at,
-        "completed_at": trace.completed_at,
-        "events": events,
-        "tool_calls": [
-            {
-                "agent": c.agent,
-                "tool": c.tool,
-                "args": c.args_json,
-                "result": c.result_json,
-                "ok": c.ok,
-            }
-            for c in trace.tool_calls()
-        ],
-        "provider_calls": [
-            {
-                "agent": c.agent,
-                "provider": c.provider,
-                "model": c.model,
-                "prompt_tokens": c.prompt_tokens,
-                "completion_tokens": c.completion_tokens,
-            }
-            for c in trace.provider_calls()
-        ],
-        "policy_decisions": [
-            {
-                "action": d.action,
-                "decision": d.decision,
-                "allowed": d.allowed,
-                "approval_required": d.approval_required,
-                "evidence_required": d.evidence_required,
-            }
-            for d in trace.policy_decisions()
-        ],
-        "errors": [
-            {"agent": e.agent, "kind": e.kind, "message": e.message}
-            for e in trace.errors()
-        ],
-        "final_status": trace.final_status,
-    }
-    if trace.has_budget_usage:
-        u = trace.budget_usage()
-        result["budget_usage"] = {
-            "steps": u.steps,
-            "prompt_tokens": u.prompt_tokens,
-            "completion_tokens": u.completion_tokens,
-            "total_tokens": u.prompt_tokens + u.completion_tokens,
-            "cost_usd": u.cost_usd,
-        }
-    return result
+    # The trace document is serialized by the native ExecutionTrace (C++), then
+    # parsed back here — the trace JSON is produced by the runtime, not assembled
+    # in Python.
+    return json.loads(trace.to_json())
 
 
 def run_runtime_plan(

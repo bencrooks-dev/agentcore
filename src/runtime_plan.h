@@ -52,6 +52,11 @@ class RuntimePlan {
 public:
     RuntimePlan() = default;
 
+    // Parse a RuntimePlan from its JSON form — a real native load (the core's
+    // own dependency-free JSON parser, no data marshalled field-by-field from
+    // Python).
+    static RuntimePlan from_json(const std::string& text);
+
     void set_meta(std::string version, std::string runtime_plan_id,
                   std::string graph_id, std::string name, std::string entrypoint);
     void add_node(RuntimeNode node);

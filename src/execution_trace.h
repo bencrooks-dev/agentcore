@@ -90,6 +90,10 @@ public:
     bool has_budget_usage() const noexcept { return has_budget_usage_; }
     const BudgetUsage& budget_usage() const noexcept { return budget_usage_; }
 
+    // Serialize the trace to its JSON document form (the core's own JSON
+    // writer — the trace is produced natively, not assembled in Python).
+    std::string to_json() const;
+
 private:
     std::string trace_id_;
     std::string runtime_plan_id_;
