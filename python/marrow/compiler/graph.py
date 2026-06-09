@@ -118,6 +118,93 @@ def contains(value: str) -> dict[str, Any]:
 
 
 @dataclass
+class PolicySpec:
+    """A governance checkpoint on an action.
+
+    ``action`` is matched against ``"provider:<id>"``, ``"agent:<id>"``,
+    ``"tool:<name>"``, or the wildcard ``"*"``. ``decision`` is ``"allow"``,
+    ``"deny"``, or ``"require_approval"``; ``approval_required`` additionally
+    gates the action on an approver; ``evidence_required`` forces the decision to
+    be recorded in the trace.
+    """
+
+    id: str
+    action: str
+    decision: str = "allow"
+    approval_required: bool = False
+    evidence_required: bool = False
+    description: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "id": self.id,
+            "action": self.action,
+            "decision": self.decision,
+            "approval_required": self.approval_required,
+            "evidence_required": self.evidence_required,
+        }
+        if self.description:
+            out["description"] = self.description
+        return out
+
+
+@dataclass
+class BudgetSpec:
+    """An execution budget. ``None`` limits mean unlimited; ``max_steps`` always
+    bounds the loop."""
+
+    max_steps: int = 16
+    max_tokens: int | None = None
+    max_cost_usd: float | None = None
+    id: str = "budget"
+    currency: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "id": self.id,
+            "max_tokens": self.max_tokens,
+            "max_cost_usd": self.max_cost_usd,
+            "max_steps": self.max_steps,
+        }
+        if self.currency is not None:
+            out["currency"] = self.currency
+        return out
+
+
+@dataclass
+class FailureSemantics:
+    """How the runtime reacts to failures. Each value is ``"abort"`` or
+    ``"record_and_continue"``."""
+
+    on_tool_error: str = "record_and_continue"
+    on_provider_error: str = "abort"
+    on_timeout: str = "abort"
+    on_cancel: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {
+            "on_tool_error": self.on_tool_error,
+            "on_provider_error": self.on_provider_error,
+            "on_timeout": self.on_timeout,
+        }
+        if self.on_cancel is not None:
+            out["on_cancel"] = self.on_cancel
+        return out
+
+
+@dataclass(frozen=True)
+class RollbackStep:
+    """A compensating action to run on failure (currently ``"clear_state"`` on a
+    named agent)."""
+
+    on: str
+    action: str = "clear_state"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"on": self.on, "action": self.action}
+
+
+@dataclass
 class AgentGraph:
     """A declaratively-defined agent system: the compiler's input.
 
@@ -132,6 +219,10 @@ class AgentGraph:
     edges: list[Edge] = field(default_factory=list)
     entrypoint: str | None = None
     metadata: dict[str, Any] | None = None
+    policies: list[PolicySpec] = field(default_factory=list)
+    budget: BudgetSpec | None = None
+    failure_semantics: FailureSemantics | None = None
+    rollback: list[RollbackStep] = field(default_factory=list)
 
     def add_provider(self, provider: ProviderSpec) -> AgentGraph:
         self.providers.append(provider)
@@ -154,4 +245,20 @@ class AgentGraph:
 
     def set_entrypoint(self, agent_id: str) -> AgentGraph:
         self.entrypoint = agent_id
+        return self
+
+    def add_policy(self, policy: PolicySpec) -> AgentGraph:
+        self.policies.append(policy)
+        return self
+
+    def set_budget(self, budget: BudgetSpec) -> AgentGraph:
+        self.budget = budget
+        return self
+
+    def set_failure_semantics(self, failure_semantics: FailureSemantics) -> AgentGraph:
+        self.failure_semantics = failure_semantics
+        return self
+
+    def add_rollback_step(self, on: str, action: str = "clear_state") -> AgentGraph:
+        self.rollback.append(RollbackStep(on, action))
         return self

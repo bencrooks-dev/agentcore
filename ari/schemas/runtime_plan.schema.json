@@ -15,10 +15,13 @@
     "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
     "tool_bindings": {"type": "object"},
     "provider_bindings": {"type": "object"},
-    "policy_checkpoints": {"type": "array", "items": {"type": "object"}},
+    "policy_checkpoints": {"type": "array", "items": {"$ref": "policy_spec.schema.json"}},
     "timeout_plan": {"type": "object"},
     "retry_plan": {"type": "object"},
-    "evidence_plan": {"type": "object"}
+    "evidence_plan": {"type": "object"},
+    "budget": {"$ref": "budget_spec.schema.json"},
+    "failure_semantics": {"$ref": "failure_semantics.schema.json"},
+    "rollback_plan": {"$ref": "rollback_plan.schema.json"}
   },
   "$defs": {
     "runtime_node": {

@@ -14,6 +14,8 @@ from .errors import CompileError
 from .graph import AgentGraph
 from .validate import validate
 
+_POLICY_DECISIONS = {"allow", "deny", "require_approval"}
+
 
 def canonical_json(obj: Any) -> str:
     """Stable serialisation used for content-addressed ids: keys sorted, no
@@ -76,6 +78,28 @@ def _validate_graph(graph: AgentGraph) -> None:
             f"entrypoint {graph.entrypoint!r} is not an agent in the graph"
         )
 
+    _check_unique("policy id", [p.id for p in graph.policies])
+    for policy in graph.policies:
+        if not policy.action:
+            raise CompileError(f"policy {policy.id!r} has an empty action")
+        if policy.decision not in _POLICY_DECISIONS:
+            raise CompileError(
+                f"policy {policy.id!r} has invalid decision {policy.decision!r} "
+                f"(expected one of {sorted(_POLICY_DECISIONS)})"
+            )
+
+    if graph.budget is not None:
+        if graph.budget.max_steps < 1:
+            raise CompileError("budget max_steps must be >= 1")
+        if graph.budget.max_tokens is not None and graph.budget.max_tokens < 0:
+            raise CompileError("budget max_tokens must be >= 0")
+        if graph.budget.max_cost_usd is not None and graph.budget.max_cost_usd < 0:
+            raise CompileError("budget max_cost_usd must be >= 0")
+
+    for step in graph.rollback:
+        if step.on not in agent_set:
+            raise CompileError(f"rollback step targets unknown agent {step.on!r}")
+
 
 def compile_to_ari(graph: AgentGraph) -> dict[str, Any]:
     """Validate ``graph`` and emit its ARI agent-graph manifest (a dict).
@@ -97,6 +121,17 @@ def compile_to_ari(graph: AgentGraph) -> dict[str, Any]:
     }
     if graph.metadata is not None:
         manifest["metadata"] = graph.metadata
+    if graph.policies:
+        manifest["policies"] = [p.to_dict() for p in graph.policies]
+    if graph.budget is not None:
+        manifest["budget"] = graph.budget.to_dict()
+    if graph.failure_semantics is not None:
+        manifest["failure_semantics"] = graph.failure_semantics.to_dict()
+    if graph.rollback:
+        manifest["rollback"] = {
+            "id": "rollback",
+            "steps": [s.to_dict() for s in graph.rollback],
+        }
 
     validate(manifest, "agent_graph.schema.json")
     return manifest

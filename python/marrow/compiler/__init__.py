@@ -16,7 +16,19 @@ from .ari_emit import canonical_json, compile_to_ari, graph_id
 from .compile import compile_and_run, compile_graph
 from .errors import CompileError
 from .execute import run_runtime_plan
-from .graph import AgentGraph, AgentNode, Edge, ProviderSpec, ToolSpec, always, contains
+from .graph import (
+    AgentGraph,
+    AgentNode,
+    BudgetSpec,
+    Edge,
+    FailureSemantics,
+    PolicySpec,
+    ProviderSpec,
+    RollbackStep,
+    ToolSpec,
+    always,
+    contains,
+)
 from .runtime_plan import ari_to_runtime_plan, load_runtime_plan, runtime_plan_id
 
 __all__ = [
@@ -25,6 +37,10 @@ __all__ = [
     "ToolSpec",
     "ProviderSpec",
     "Edge",
+    "PolicySpec",
+    "BudgetSpec",
+    "FailureSemantics",
+    "RollbackStep",
     "always",
     "contains",
     "compile_to_ari",
