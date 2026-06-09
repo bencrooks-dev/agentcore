@@ -66,8 +66,10 @@ class PolicyEngine:
                     if self._approver is not None
                     else False
                 )
-            else:
+            elif verdict == "allow":
                 allowed = True
+            else:
+                allowed = False  # unknown verdict: fail closed
             decisions.append(
                 Decision(
                     action=action,

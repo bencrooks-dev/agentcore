@@ -173,8 +173,12 @@ class BudgetSpec:
 
 @dataclass
 class FailureSemantics:
-    """How the runtime reacts to failures. Each value is ``"abort"`` or
-    ``"record_and_continue"``."""
+    """How the runtime should react to failures. Each value is ``"abort"`` or
+    ``"record_and_continue"``.
+
+    Carried in the plan and surfaced in the trace; today the executor realizes
+    only the abort path (the mock provider does not fail, so
+    ``record_and_continue`` is reserved for real providers)."""
 
     on_tool_error: str = "record_and_continue"
     on_provider_error: str = "abort"

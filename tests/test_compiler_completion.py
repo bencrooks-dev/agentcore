@@ -1,4 +1,5 @@
 """Replay determinism and deployment-manifest generation."""
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -50,6 +51,15 @@ def test_replay_differs_for_different_input():
     b = replay(echo_plan(), "two")
     assert not traces_equivalent(a, b)
     assert a["trace_id"] != b["trace_id"]
+
+
+def test_persisted_trace_reproduces_on_replay():
+    # The audit scenario: a previously-recorded trace, serialized to JSON and
+    # read back later, matches a fresh replay of the same plan + input.
+    recorded = compile_and_run(echo_graph(), "audit me")["trace"]
+    loaded = json.loads(json.dumps(recorded))
+    fresh = replay(echo_plan(), "audit me")
+    assert traces_equivalent(loaded, fresh)
 
 
 # --- deployment manifest -----------------------------------------------------

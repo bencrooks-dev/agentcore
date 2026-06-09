@@ -235,10 +235,13 @@ def run_runtime_plan(
     # are recorded in the native trace.
     policy = PolicyEngine(plan.get("policy_checkpoints", []), approver)
     budget = BudgetMeter(plan.get("budget"), pricing)
-    record_policy = bool(
-        plan.get("evidence_plan", {}).get("record_policy_decisions", True)
-    )
+    evidence_plan = plan.get("evidence_plan", {})
+    record_policy = bool(evidence_plan.get("record_policy_decisions", True))
+    record_provider = bool(evidence_plan.get("record_provider_calls", True))
     rollback_plan = plan.get("rollback_plan", {"steps": []})
+    # Carried for completeness; the MVP realizes the abort path on error (the mock
+    # provider does not fail, so record_and_continue stays reserved).
+    failure_semantics = plan.get("failure_semantics", {})
 
     edges = native.edges()
     trace = _c.ExecutionTrace(
@@ -284,11 +287,12 @@ def run_runtime_plan(
             completion_tokens = int(getattr(resp, "completion_tokens", 0) or 0)
             budget.record_provider_usage(model, prompt_tokens, completion_tokens)
             _event(trace, "provider_called", agent=current, provider=node.provider)
-            trace.add_provider_call(
-                _c.ProviderCall(
-                    current, node.provider, model, prompt_tokens, completion_tokens
+            if record_provider:
+                trace.add_provider_call(
+                    _c.ProviderCall(
+                        current, node.provider, model, prompt_tokens, completion_tokens
+                    )
                 )
-            )
             _event(trace, "agent_completed", agent=current)
 
             if budget.over_tokens() or budget.over_cost():
@@ -312,13 +316,19 @@ def run_runtime_plan(
             current = next_node
             runtime.router.set_active(current)
     except Exception as exc:  # noqa: BLE001 — record any failure as evidence
+        # The abort path is realized; the configured mode is surfaced for evidence.
+        mode = failure_semantics.get("on_provider_error", "abort")
         final_status = "error"
         trace.add_error(_c.TraceError(current, type(exc).__name__, str(exc)[:200]))
-        _event(trace, "error", agent=current, kind=type(exc).__name__)
+        _event(trace, "error", agent=current, kind=type(exc).__name__, mode=mode)
 
+    usage = budget.usage()
     trace.set_budget_usage(
         _c.BudgetUsage(
-            budget.steps, budget.prompt_tokens, budget.completion_tokens, budget.cost_usd
+            usage["steps"],
+            usage["prompt_tokens"],
+            usage["completion_tokens"],
+            usage["cost_usd"],
         )
     )
     if final_status != "completed" and rollback_plan.get("steps"):

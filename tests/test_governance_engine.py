@@ -56,6 +56,13 @@ def test_unmatched_action_yields_no_decisions():
     assert eng.evaluate("tool:echo") == []
 
 
+def test_unknown_decision_fails_closed():
+    # A malformed verdict (the validated pipeline forbids this) must not pass.
+    eng = PolicyEngine([cp("provider:mock", "block")])
+    [d] = eng.evaluate("provider:mock")
+    assert d.allowed is False
+
+
 def test_evidence_required_flag_is_surfaced():
     eng = PolicyEngine([cp("provider:mock", "allow", evidence_required=True)])
     [d] = eng.evaluate("provider:mock")

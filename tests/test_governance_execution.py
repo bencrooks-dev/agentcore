@@ -8,6 +8,8 @@ from marrow.compiler import (
     ProviderSpec,
     ToolSpec,
     compile_and_run,
+    compile_graph,
+    run_runtime_plan,
 )
 
 
@@ -123,3 +125,35 @@ def test_generous_budget_completes():
     g = single_agent(BudgetSpec(max_steps=8, max_tokens=100000, max_cost_usd=10.0))
     trace = compile_and_run(g, "hi")["trace"]
     assert trace["final_status"] == "completed"
+
+
+# --- documented limitations & evidence gating -------------------------------
+
+
+def test_tool_action_policy_is_not_triggered_by_the_mock_loop():
+    # Documented limitation: the mock provider never invokes tools, so a
+    # tool:<name> policy is only evaluated by the PolicyEngine (see
+    # test_governance_engine), not during a mock run. A "*" policy gates
+    # everything; this test pins the current (intentional) behavior.
+    g = single_agent()
+    g.add_policy(PolicySpec(id="t", action="tool:echo", decision="deny"))
+    trace = compile_and_run(g, "hi")["trace"]
+    assert trace["final_status"] == "completed"
+    assert trace["policy_decisions"] == []
+
+
+def test_wildcard_policy_does_gate_the_run():
+    g = single_agent()
+    g.add_policy(PolicySpec(id="all", action="*", decision="deny"))
+    trace = compile_and_run(g, "hi")["trace"]
+    assert trace["final_status"] == "denied"
+
+
+def test_record_provider_calls_can_be_disabled():
+    plan = compile_graph(single_agent())["runtime_plan"]
+    plan["evidence_plan"]["record_provider_calls"] = False
+    trace = run_runtime_plan(plan, "hi")
+    assert trace["final_status"] == "completed"
+    assert trace["provider_calls"] == []
+    # Budget is still metered even when provider-call evidence is off.
+    assert trace["budget_usage"]["steps"] == 1
