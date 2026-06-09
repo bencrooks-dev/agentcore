@@ -1,5 +1,7 @@
 """Policy and budget enforcement during execution: denials halt and roll back,
 budgets bound the run, and evidence is recorded in the trace."""
+from __future__ import annotations
+
 from marrow.compiler import (
     AgentGraph,
     AgentNode,

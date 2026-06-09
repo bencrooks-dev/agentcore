@@ -1,5 +1,7 @@
 """The tool-use loop: agents request tools, calls are policy-gated, invoked
 through the C++ ToolRegistry, recorded, and their results fed back."""
+from __future__ import annotations
+
 import json
 import time
 
@@ -212,7 +214,7 @@ def test_provider_error_message_is_redacted_in_the_trace():
 
 def test_wall_clock_budget_halts_a_slow_tool():
     def slow(text):
-        time.sleep(0.05)
+        time.sleep(0.1)  # comfortably exceeds OS timer granularity (Windows ~16ms)
         return text
 
     g = _graph()
