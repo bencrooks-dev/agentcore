@@ -22,9 +22,12 @@ def compile_graph(graph: AgentGraph) -> dict[str, Any]:
     return {"ari": ari, "runtime_plan": plan}
 
 
-def compile_and_run(graph: AgentGraph, initial_input: str) -> dict[str, Any]:
+def compile_and_run(graph: AgentGraph, initial_input: str, **run_kwargs: Any) -> dict[str, Any]:
     """Compile ``graph`` and execute it, returning
-    ``{"ari": ..., "runtime_plan": ..., "trace": ...}``."""
+    ``{"ari": ..., "runtime_plan": ..., "trace": ...}``.
+
+    ``run_kwargs`` (e.g. ``approver=``, ``pricing=``) are forwarded to
+    :func:`run_runtime_plan`."""
     result = compile_graph(graph)
-    result["trace"] = run_runtime_plan(result["runtime_plan"], initial_input)
+    result["trace"] = run_runtime_plan(result["runtime_plan"], initial_input, **run_kwargs)
     return result

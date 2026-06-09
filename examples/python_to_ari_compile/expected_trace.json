@@ -31,5 +31,12 @@
   ],
   "policy_decisions": [],
   "errors": [],
-  "final_status": "completed"
+  "final_status": "completed",
+  "budget_usage": {
+    "steps": 1,
+    "prompt_tokens": 3,
+    "completion_tokens": 6,
+    "total_tokens": 9,
+    "cost_usd": 0.0
+  }
 }
