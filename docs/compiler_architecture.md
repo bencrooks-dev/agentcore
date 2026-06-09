@@ -64,9 +64,10 @@ are defined for completeness and validated structurally where cheap.
 The MVP proves stages 1–7 and 9–13 end-to-end for a single mock-provider agent:
 the chain compiles, enforces policy and budgets, executes, traces, and replays.
 Stage 8 (state/memory layout) is realized by the engine's `AgentState` and passed
-through. The remaining gaps are non-mock providers and non-Python frontends,
-which are future work (see [`language_roadmap.md`](./language_roadmap.md)) — not
-claims made here.
+through; stage 9 is canonicalization (no heavier optimization yet). Execution
+runs on real, pluggable providers (mock default) with a policy-gated tool-use
+loop; see [§6](#6-scope-what-is-built-and-what-is-deliberately-not) for the
+honest boundary.
 
 ---
 
@@ -132,7 +133,7 @@ Canonical conventions:
 - **Required:** `id`, `type`, `model`, `config_ref`.
 - **Optional:** none.
 - **JSON:** `{"id":"mock","type":"mock","model":"mock-echo","config_ref":null}`
-- **C++ mapping:** → `ProviderBinding` (`src/runtime_plan.h`): `id, type, model, config_ref`. `type:"mock"` resolves to the existing C++ `MockProvider`.
+- **C++ mapping:** → `ProviderBinding` (`src/runtime_plan.h`): `id, type, model, config_ref`. The executor's provider factory (`providers.py`) resolves `type`: `mock`/`echo` → the C++ `MockProvider` (keyless default), `openai`/`anthropic`/`ollama` → the built-in real providers, or a caller-supplied factory (`run_runtime_plan(..., providers={type: factory})`) for bring-your-own models.
 
 ### 3.5 PolicySpecIR — `ari/schemas/policy_spec.schema.json`
 
@@ -166,16 +167,16 @@ Canonical conventions:
     "evidence_plan": {"record_tool_calls": true, "record_provider_calls": true, "record_policy_decisions": true}
   }
   ```
-- **C++ mapping:** → `marrow.RuntimePlan` (`src/runtime_plan.{h,cpp}`), built across
-  the pybind boundary by `marrow.compiler.load_runtime_plan(plan_dict)`. Holds
-  `version, runtime_plan_id, graph_id, name, entrypoint, nodes[], edges[],
-  tool_bindings, provider_bindings` and exposes inspection
-  (`node_count(), entrypoint(), node(id), provider(id), ...`). **No JSON parser is
-  linked into C++**; Python marshals the already-validated dict into the struct.
-  "Load" here means "construct and inspect in C++," stated plainly. The executor
-  (stage 11) builds this object via `load_runtime_plan` and reads its
-  nodes/edges/bindings *out of it* to drive the run — the plan genuinely reaches
-  the native layer, it is not just a Python dict.
+- **C++ mapping:** → `marrow.RuntimePlan` (`src/runtime_plan.{h,cpp}`). The core
+  has its **own dependency-free JSON parser** (`src/json.hpp`):
+  `RuntimePlan::from_json(text)` parses the plan JSON natively — `load_runtime_plan`
+  serializes the plan and hands the string to C++, which parses it (no
+  field-by-field marshalling). The struct holds `version, runtime_plan_id,
+  graph_id, name, entrypoint, nodes[], edges[], tool_bindings, provider_bindings`
+  and exposes inspection (`node_count(), entrypoint(), node(id), provider(id), …`).
+  The executor (stage 11) loads this object and reads its nodes/edges/bindings
+  *out of it* to drive the run; the `ExecutionTrace` likewise serializes itself
+  via `to_json()`.
 
 ### 3.7 ExecutionTraceIR — `ari/schemas/execution_trace.schema.json` **[MVP]**
 
@@ -223,9 +224,10 @@ Canonical conventions:
 - **C++ mapping:** carried in `runtime_plan.budget` and enforced by the
   executor's `BudgetMeter` (`governance.py`): steps/tokens/cost are metered each
   turn, a breach halts the run (`"exhausted"` / `"over_budget"`), and consumption
-  is recorded in the native `ExecutionTrace.budget_usage`. **[MVP]** Token/cost
-  limits are checked *after* each provider call (the breaching call still runs);
-  `max_steps` is the only pre-emptive bound, and there is no wall-clock budget.
+  is recorded in the native `ExecutionTrace.budget_usage`. **[MVP]** `max_steps`
+  and `max_wall_ms` are pre-emptive (checked before each step); token/cost limits
+  are checked *after* each provider call (the breaching call still runs, since
+  token counts are only known once the call returns).
 
 ### 3.10 EvidenceSpecIR
 
@@ -241,10 +243,12 @@ Canonical conventions:
 - **Required:** `on_tool_error`, `on_provider_error`, `on_timeout`.
 - **Optional:** `on_cancel`.
 - **JSON:** `{"on_tool_error":"record_and_continue","on_provider_error":"abort","on_timeout":"abort"}`
-- **C++ mapping:** carried in `runtime_plan.failure_semantics`. The executor
-  records any error into the trace and sets `final_status:"error"` (the abort
-  path). `record_and_continue` is reserved: the mock provider does not fail, so
-  only the abort path is exercised today.
+- **C++ mapping:** carried in `runtime_plan.failure_semantics` and honored by the
+  executor. `on_provider_error` and `on_tool_error` each branch between `"abort"`
+  (record + halt + rollback) and `"record_and_continue"` (record + keep going) —
+  both paths are exercised by tests using failing providers/tools. `on_timeout`
+  is reserved (the wall-clock *budget* bounds total time; per-call kill needs the
+  async worker path). **[MVP]**
 
 ### 3.12 RollbackPlanIR
 
@@ -323,26 +327,37 @@ sufficient for the seven schemas, not a full JSON-Schema engine.
 
 ---
 
-## 6. What the MVP deliberately does not do
+## 6. Scope: what is built, and what is deliberately not
+
+The compile→plan→**enforce**→execute→trace→replay chain is real and tested, with
+**real and pluggable providers** (mock default; OpenAI/Anthropic/Ollama built in;
+bring-your-own via a factory), a **policy-gated tool-use loop** (agents invoke
+tools through the C++ ToolRegistry, gated by `tool:` policies), **full failure
+semantics** (provider and tool errors honor abort / record-and-continue),
+**native C++ JSON** (the core parses RuntimePlan JSON and serializes the trace),
+**budgets** (steps / tokens / cost / wall-clock), policy enforcement, evidence,
+rollback, deployment manifests, deterministic replay, and a **TypeScript
+frontend** that emits identical ARI. The feature set of the compiler/runtime
+vision is implemented.
+
+It deliberately does **not**:
 
 - Compile arbitrary Python (only the declared graph/specs).
-- Use any non-mock provider or require any API key.
-- Run an automatic tool-use loop. Tool-call policies are enforced *when* a tool
-  is invoked, but the mock provider does not request tools, so tool actions are
-  exercised only at the `PolicyEngine` level (that loop is future work).
-- Branch on `FailureSemantics` beyond aborting on error: the field is carried in
-  the plan, but only the abort path is realized for the mock (which does not
-  fail). `record_and_continue` is reserved for real providers.
-- Parse RuntimePlan JSON inside C++ — the plan is constructed across the pybind
-  boundary (a deliberate near-zero-dependency choice).
-- Provide non-Python frontends (TypeScript, WASM, …) — see
-  [`language_roadmap.md`](./language_roadmap.md).
+- Default to a keyed provider — `mock` is the keyless default; real providers
+  require their SDK + key and are exercised by the caller, not in CI.
+- Extract hosted providers' native tool-call format — the tool-use loop uses a
+  portable text convention (`{"tool_call": {...}}`); native OpenAI/Anthropic
+  tool-call parsing is a provider enhancement.
+- Enforce a per-call `on_timeout` kill (the wall-clock *budget* bounds total run
+  time; killing an individual hung call needs the async worker path).
+- Ship WASM / Rust / Go frontends yet — TypeScript proves the pattern; the rest
+  emit ARI the same way (see [`language_roadmap.md`](./language_roadmap.md)).
 - Serialize arbitrary lambda edge conditions — edges use a small declarative
   condition form (`{"type":"always"}` or `{"type":"contains","value":"..."}`).
 - Replace `ARI-SPEC.md` or claim the manifests are normative ARI 0.1.
 
-The compile→plan→**enforce**→execute→trace→replay chain is real and tested,
-including policy enforcement, budgets, evidence, rollback, deployment manifests,
-and deterministic replay. What remains for a *full* compiler/runtime is non-mock
-execution and non-Python frontends — so Marrow is honestly an **early** AI-aware
-compiler/runtime, not yet a complete one.
+So the feature set is complete, but this is still **draft, pre-production**
+software: it has not been soak-tested at scale, security-audited, or run against
+hosted providers in CI. Marrow is an honest, functionally-complete **early** AI-aware
+compiler/runtime — usable today with your own providers and tools — not yet a
+battle-tested one.

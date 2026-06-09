@@ -61,6 +61,8 @@ jobs:
           python examples/graph_example.py
           python examples/streaming_example.py
           python examples/async_example.py
+          python examples/governance_example.py
+          python examples/python_to_ari_compile/run_runtime_plan.py
 
   conformance:
     name: ARI conformance kit
@@ -80,6 +82,21 @@ jobs:
         run: python -m pip install -e . -v
       - name: Run ARI conformance kit
         run: pytest ari-conformance/ -v
+
+  typescript:
+    name: TypeScript frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build + test the TS frontend
+        working-directory: ts
+        run: |
+          npm install
+          npm run build
+          npm test
 
   tsan:
     name: ThreadSanitizer (concurrency tests)

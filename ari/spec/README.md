@@ -31,7 +31,7 @@ major version; nothing in this directory changes it.
 | `provider_spec.schema.json` | Logical provider id → type/model | yes |
 | `policy_spec.schema.json` | Governance checkpoint (enforced at runtime) | yes |
 | `budget_spec.schema.json` | Step / token / cost budget (enforced at runtime) | yes |
-| `failure_semantics.schema.json` | How the runtime reacts to failures | partial |
+| `failure_semantics.schema.json` | How the runtime reacts to failures (abort / record-and-continue) | yes |
 | `rollback_plan.schema.json` | Compensating steps run on abnormal termination | yes |
 | `runtime_plan.schema.json` | Lowered, bound, executable plan | yes |
 | `execution_trace.schema.json` | Portable record of one run | yes |

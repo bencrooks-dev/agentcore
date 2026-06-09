@@ -9,16 +9,19 @@ frontend (any language)  ──►  ARI manifest (JSON/YAML)  ──►  Runtime
         emits ARI                  the stable contract        Marrow compiles
 ```
 
-## V1 — Python frontend (current)
+## V1 — Python frontend (shipped)
 
 - Python frontend (`marrow.compiler`: `AgentGraph` / `AgentNode` / `ToolSpec` /
-  `ProviderSpec`).
+  `ProviderSpec` / `PolicySpec` / `BudgetSpec`).
 - JSON ARI manifests (YAML is an equivalent surface over the same schemas).
 
-## V2 — TypeScript
+## V2 — TypeScript (shipped)
 
-- A TypeScript SDK / exporter that emits the same ARI manifests. No runtime
-  rewrite: TS authors a graph, exports ARI, Marrow compiles and runs it.
+- A TypeScript SDK / exporter ([`ts/`](../ts/)) that emits the **same** ARI
+  manifests — verified by a parity test: the TS frontend produces a byte-identical
+  manifest and the identical `graph_id` for the same graph as Python. No runtime
+  rewrite: TS authors a graph, exports ARI, Marrow compiles and runs it. This is
+  the proof that the "frontends emit ARI" model holds across languages.
 
 ## V3 — WASM
 

@@ -4,6 +4,26 @@ All notable changes to `marrow` are documented here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — compiler completion (real providers, tools, native JSON, TS)
+
+- **Pluggable providers** — the executor builds providers by type: `mock`/`echo`
+  (keyless default), `openai`/`anthropic`/`ollama` (built-in), or a caller-supplied
+  factory (`run_runtime_plan(..., providers={type: factory})`) for bring-your-own
+  models.
+- **Tool-use loop** — agents request tools (a portable `{"tool_call": …}`
+  convention); each call is policy-gated (`tool:<name>`), invoked through the C++
+  `ToolRegistry`, recorded, and its result fed back. Supply implementations via
+  `run_runtime_plan(..., tools={name: callable})`.
+- **Full failure semantics** — `on_provider_error` / `on_tool_error` honor
+  `abort` vs `record_and_continue` (tested with failing providers/tools).
+- **Native C++ JSON** — a dependency-free parser (`src/json.hpp`):
+  `RuntimePlan.from_json` parses plans, `ExecutionTrace.to_json` serializes traces.
+  The plan is now loaded by parsing JSON in C++, not marshalled field-by-field.
+- **Wall-clock budgets** — `BudgetSpec(max_wall_ms=…)` bounds total run time
+  (pre-emptive, alongside `max_steps`).
+- **TypeScript frontend** — [`ts/`](ts/) emits ARI manifests identical to the
+  Python frontend (parity test on `graph_id` + the manifest). CI builds and tests it.
+
 ### Added — compiler governance (experimental)
 
 - **Policy enforcement** — `PolicySpec` checkpoints (allow / deny /

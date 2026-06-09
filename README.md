@@ -362,19 +362,27 @@ What is **not** done and should not yet be relied on:
 
 ### Compiler (experimental)
 
-An early, additive **compiler layer** turns a declaratively-defined agent graph
-into a portable, executable plan:
+An additive **compiler layer** turns a declaratively-defined agent graph into a
+portable, executable plan:
 
 ```
-Python AgentGraph  →  ARI manifest (JSON)  →  RuntimePlan (JSON)  →  native runtime  →  ExecutionTrace (JSON)
+AgentGraph  →  ARI manifest (JSON)  →  RuntimePlan (JSON)  →  native runtime  →  ExecutionTrace (JSON)
 ```
 
-It does not change the runtime or the normative [ARI spec](ARI-SPEC.md), compiles
-agent graphs (not arbitrary Python), and runs on a mock provider with no API key.
+It compiles agent graphs (not arbitrary Python) without changing the runtime or
+the normative [ARI spec](ARI-SPEC.md). The pipeline is feature-complete: real,
+pluggable providers (mock default; OpenAI/Anthropic/Ollama built in; bring your
+own); a policy-gated **tool-use loop**; governance — **policy** enforcement,
+**budgets** (steps/tokens/cost/wall-clock), evidence, **rollback**, deterministic
+**replay**, deployment manifests; native C++ JSON; and a **TypeScript frontend**
+([`ts/`](ts/)) that emits identical ARI. Authoring in Python uses a mock provider
+with no API key.
+
 See [`docs/compiler_architecture.md`](docs/compiler_architecture.md),
 [`docs/marrow_compiler_positioning.md`](docs/marrow_compiler_positioning.md), and
-the runnable [`examples/python_to_ari_compile/`](examples/python_to_ari_compile/).
-This is an **early** compiler — see those docs for what is built versus specified.
+the runnable [`examples/python_to_ari_compile/`](examples/python_to_ari_compile/)
++ [`examples/governance_example.py`](examples/governance_example.py). It is
+feature-complete but **early/pre-production** — see the docs for the honest boundary.
 
 ### Roadmap
 
