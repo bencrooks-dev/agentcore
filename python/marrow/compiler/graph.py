@@ -25,7 +25,12 @@ from typing import Any
 
 @dataclass
 class ProviderSpec:
-    """A logical provider id bound to a concrete provider type/model."""
+    """A logical provider id bound to a concrete provider type/model.
+
+    ``config_ref`` is opaque metadata: the built-in providers
+    (``openai``/``anthropic``/``ollama``) read keys/URLs from the environment and
+    ignore it. A custom provider factory (``run_runtime_plan(..., providers=...)``)
+    may interpret ``config_ref`` however it likes (e.g. as a config key)."""
 
     id: str
     type: str
@@ -176,12 +181,15 @@ class BudgetSpec:
 
 @dataclass
 class FailureSemantics:
-    """How the runtime should react to failures. Each value is ``"abort"`` or
+    """How the runtime reacts to failures. Each value is ``"abort"`` or
     ``"record_and_continue"``.
 
-    Carried in the plan and surfaced in the trace; today the executor realizes
-    only the abort path (the mock provider does not fail, so
-    ``record_and_continue`` is reserved for real providers)."""
+    ``on_provider_error`` and ``on_tool_error`` are honored by the executor:
+    ``abort`` records the error and halts the run (triggering rollback);
+    ``record_and_continue`` records it and proceeds (a provider failure yields an
+    empty turn; a tool failure feeds an ``{"ok": false, ...}`` result back to the
+    agent). ``on_timeout`` is reserved — the wall-clock *budget* bounds total run
+    time, but a per-call timeout kill is not yet wired."""
 
     on_tool_error: str = "record_and_continue"
     on_provider_error: str = "abort"
@@ -252,6 +260,10 @@ class AgentGraph:
 
     def set_entrypoint(self, agent_id: str) -> AgentGraph:
         self.entrypoint = agent_id
+        return self
+
+    def set_metadata(self, metadata: dict[str, Any]) -> AgentGraph:
+        self.metadata = metadata
         return self
 
     def add_policy(self, policy: PolicySpec) -> AgentGraph:

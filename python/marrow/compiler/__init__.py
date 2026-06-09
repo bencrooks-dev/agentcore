@@ -17,6 +17,7 @@ from .compile import compile_and_run, compile_graph
 from .deploy import make_deployment_manifest
 from .errors import CompileError
 from .execute import run_runtime_plan
+from .governance import Approver
 from .graph import (
     AgentGraph,
     AgentNode,
@@ -30,6 +31,7 @@ from .graph import (
     always,
     contains,
 )
+from .providers import ProviderFactory
 from .replay import normalize_trace, replay, traces_equivalent
 from .runtime_plan import ari_to_runtime_plan, load_runtime_plan, runtime_plan_id
 
@@ -58,5 +60,7 @@ __all__ = [
     "traces_equivalent",
     "normalize_trace",
     "make_deployment_manifest",
+    "Approver",
+    "ProviderFactory",
     "CompileError",
 ]

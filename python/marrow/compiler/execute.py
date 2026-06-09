@@ -3,18 +3,20 @@
 The plan is first loaded into the native C++ ``RuntimePlan`` (``load_runtime_plan``);
 execution then reads its nodes, edges, and bindings *from that native object* and
 materialises them as a :class:`marrow.Runtime` with :class:`marrow.Agent` nodes
-bound to the native ``MockProvider``, driving the same step/handoff loop
-``run_graph`` uses and recording each agent/provider event into a native
-``ExecutionTrace``. No new executor is added — the C++ engine runs the turns.
+bound to pluggable providers (the keyless mock by default), driving the same
+step/handoff loop ``run_graph`` uses, running a policy-gated tool-use loop, and
+recording each agent/provider/tool event into a native ``ExecutionTrace``. No new
+executor is added — the C++ engine runs the turns.
 
-Governance is enforced as the run proceeds: before each agent/provider action the
-:class:`PolicyEngine` is consulted (a denied action halts the run with
-``final_status="denied"``), and a :class:`BudgetMeter` bounds steps/tokens/cost
-(``"exhausted"`` / ``"over_budget"``). Policy decisions and budget consumption are
-recorded in the trace, and on any abnormal termination the plan's rollback steps
-run. The MVP executes mock providers only — no provider that needs an API key.
-The trace's timestamps are wall-clock and therefore not reproducible; everything
-else is deterministic for a given (plan, input, approver, pricing).
+Governance is enforced as the run proceeds: before each agent/provider/tool
+action the :class:`PolicyEngine` is consulted (a denied action halts the run with
+``final_status="denied"``), and a :class:`BudgetMeter` bounds
+steps/tokens/cost/wall-clock (``"exhausted"`` / ``"over_budget"``). Provider and
+tool failures honor the plan's ``failure_semantics`` (abort / record-and-continue).
+Decisions, usage, and errors are recorded in the trace, and on any abnormal
+termination the plan's rollback steps run. The trace's timestamps are wall-clock
+and therefore not reproducible; everything else is deterministic for a given
+(plan, input, approver, pricing, providers, tools).
 """
 from __future__ import annotations
 
@@ -43,12 +45,12 @@ def _trace_id(runtime_plan_id: str, initial_input: str) -> str:
 
 
 class _RecordingProvider(_c.Provider):
-    """A Python provider that delegates to the native ``MockProvider`` and
-    remembers the last response, so the executor can record token usage while
-    execution still runs through the C++ engine and the C++ mock.
-
-    The delegation re-enters the engine's GIL-released ``MockProvider`` path;
-    pybind's GIL guards nest safely, so this is intentional, not a bug."""
+    """Wraps the bound provider (the native mock by default, or a real/custom
+    provider) and remembers the last response, so the executor can record token
+    usage while execution runs through the C++ engine. It is provider-agnostic:
+    token counts are read via ``getattr`` on the response. When the inner is the
+    native ``MockProvider``, the delegation re-enters its GIL-released path; pybind's
+    GIL guards nest safely, so that is intentional, not a bug."""
 
     def __init__(self, inner: Any, provider_id: str) -> None:
         super().__init__()

@@ -62,6 +62,7 @@ jobs:
           python examples/streaming_example.py
           python examples/async_example.py
           python examples/governance_example.py
+          python examples/tool_use_example.py
           python examples/python_to_ari_compile/run_runtime_plan.py
 
   conformance:
