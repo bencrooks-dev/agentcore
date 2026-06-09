@@ -6,9 +6,9 @@ seven small schemas. This validator supports exactly the subset those schemas
 use:
 
 - ``type`` (a string, or a list of strings including ``"null"``)
-- ``properties`` / ``required`` / ``additionalProperties`` (``false`` or a schema)
+- ``properties`` / ``required`` / ``additionalProperties`` (``false``)
 - ``items`` / ``minItems`` for arrays
-- ``enum`` / ``const``
+- ``enum``
 - ``$ref`` to a sibling ``<name>.schema.json`` or a local ``#/$defs/...`` pointer
 
 It is not a general validator; it is enough to validate (and clearly reject)
@@ -97,8 +97,6 @@ def _validate(value: Any, schema: dict[str, Any], root: dict[str, Any],
             errors.append(f"{where}: expected type {declared_type}, got {type(value).__name__}")
             return  # further checks assume the type matched
 
-    if "const" in schema and value != schema["const"]:
-        errors.append(f"{where}: expected const {schema['const']!r}, got {value!r}")
     if "enum" in schema and value not in schema["enum"]:
         errors.append(f"{where}: {value!r} is not one of {schema['enum']}")
 
@@ -107,15 +105,13 @@ def _validate(value: Any, schema: dict[str, Any], root: dict[str, Any],
         for req in schema.get("required", []):
             if req not in value:
                 errors.append(f"{where}: missing required property '{req}'")
-        additional = schema.get("additionalProperties", True)
+        allow_additional = schema.get("additionalProperties", True)
         for key, item in value.items():
             child = f"{path}.{key}" if path else key
             if key in props:
                 _validate(item, props[key], root, child, errors)
-            elif additional is False:
+            elif allow_additional is False:
                 errors.append(f"{child}: additional property not allowed")
-            elif isinstance(additional, dict):
-                _validate(item, additional, root, child, errors)
 
     if isinstance(value, list):
         min_items = schema.get("minItems")

@@ -1,8 +1,7 @@
 """Lower an :class:`AgentGraph` to an ARI manifest and identify it.
 
-``compile_to_ari`` performs the structural checks the brief's pipeline calls for
-(graph validation, tool-contract validation, provider-contract validation) with
-clear errors, then emits a manifest that is validated against
+``compile_to_ari`` validates the graph (structure, tool contracts, provider
+contracts) with clear errors, then emits a manifest that is validated against
 ``ari/schemas/agent_graph.schema.json``.
 """
 from __future__ import annotations
