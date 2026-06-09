@@ -121,14 +121,15 @@ def test_tool_require_approval_with_approver_completes():
 
 
 def test_unknown_tool_records_and_continues_by_default():
-    provider = _ScriptedProvider("ghost", {}, "final after missing tool")
+    # echo is declared by the agent but not supplied at runtime -> UnknownTool.
+    provider = _ScriptedProvider("echo", {"text": "x"}, "final after missing tool")
     trace = compile_and_run(_graph(), "go", tools={}, **_with(provider))["trace"]
     assert trace["final_status"] == "completed"
     assert any(e["kind"] == "UnknownTool" for e in trace["errors"])
 
 
 def test_unknown_tool_aborts_when_configured():
-    provider = _ScriptedProvider("ghost", {}, "unused")
+    provider = _ScriptedProvider("echo", {"text": "x"}, "unused")
     g = _graph(failure=FailureSemantics(on_tool_error="abort"))
     trace = compile_and_run(g, "go", tools={}, **_with(provider))["trace"]
     assert trace["final_status"] == "error"
@@ -178,6 +179,35 @@ def test_provider_error_record_and_continue():
     # The run continues past the provider failure rather than aborting.
     assert trace["final_status"] == "completed"
     assert any(e["kind"] == "RuntimeError" for e in trace["errors"])
+
+
+def test_agent_cannot_call_an_undeclared_tool():
+    # The agent declares only ["echo"]; requesting another tool is unauthorized.
+    provider = _ScriptedProvider("other_tool", {}, "final")
+    trace = compile_and_run(
+        _graph(), "go", tools={"other_tool": lambda: "x"}, **_with(provider)
+    )["trace"]
+    assert trace["final_status"] == "completed"  # record_and_continue default
+    assert any(e["kind"] == "UnauthorizedTool" for e in trace["errors"])
+    assert trace["tool_calls"] == []  # the tool never ran
+
+
+class _SecretLeakProvider(PyProviderBase):
+    """A provider whose exception message contains a secret-looking token."""
+
+    def name(self) -> str:
+        return "leaky"
+
+    def generate(self, req):  # noqa: ARG002
+        raise RuntimeError("auth failed for key sk-ant-abcdefgh12345678ijkl")
+
+
+def test_provider_error_message_is_redacted_in_the_trace():
+    g = _graph(failure=FailureSemantics(on_provider_error="record_and_continue"))
+    trace = compile_and_run(g, "go", tools={}, **_with(_SecretLeakProvider()))["trace"]
+    messages = " ".join(e["message"] for e in trace["errors"])
+    assert "sk-ant-" not in messages
+    assert "REDACTED" in messages
 
 
 def test_wall_clock_budget_halts_a_slow_tool():

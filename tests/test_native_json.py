@@ -55,6 +55,25 @@ def test_malformed_json_raises():
         _c.RuntimePlan.from_json("{not valid json")
 
 
+def test_deeply_nested_json_is_rejected_not_crashed():
+    # Unbounded recursion on adversarial input would overflow the stack; the
+    # parser bounds depth and raises instead.
+    deep = "[" * 100000 + "]" * 100000
+    with pytest.raises(Exception):  # noqa: B017
+        _c.RuntimePlan.from_json(deep)
+
+
+def test_lone_surrogate_becomes_replacement_char():
+    # A lone surrogate must decode to U+FFFD, not invalid (WTF-8) UTF-8.
+    raw = (
+        '{"version":"v","graph_id":"g","entrypoint":"a",'
+        '"nodes":[{"id":"a","name":"A","provider":"p",'
+        '"system_prompt":"x \\ud800 y","tools":[]}]}'
+    )
+    native = _c.RuntimePlan.from_json(raw)
+    assert native.node("a").system_prompt == "x � y"
+
+
 def test_execution_trace_to_json_roundtrips_with_escapes():
     tr = _c.ExecutionTrace("tr_x", "rp_y")
     tr.set_input('he said "hi"\nthen left')  # quotes + newline must be escaped

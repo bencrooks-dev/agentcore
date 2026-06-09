@@ -86,6 +86,10 @@ private:
 
 namespace detail {
 
+// Bound recursion so adversarial deeply-nested input cannot overflow the stack.
+// Real RuntimePlans/traces nest only a handful of levels deep.
+constexpr int MAX_DEPTH = 200;
+
 inline void skip_ws(const char*& s, const char* end) {
     while (s < end && (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r')) ++s;
 }
@@ -145,8 +149,18 @@ inline std::string parse_string(const char*& s, const char* end) {
                     if (s + 2 <= end && s[0] == '\\' && s[1] == 'u') {
                         s += 2;
                         unsigned int lo = parse_hex4(s, end);
-                        cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00);
+                        if (lo >= 0xDC00 && lo <= 0xDFFF) {
+                            cp = 0x10000u + ((cp - 0xD800u) << 10) + (lo - 0xDC00u);
+                        } else {
+                            // Unpaired high surrogate: emit U+FFFD, then handle lo.
+                            append_utf8(out, 0xFFFD);
+                            cp = (lo >= 0xD800 && lo <= 0xDFFF) ? 0xFFFDu : lo;
+                        }
+                    } else {
+                        cp = 0xFFFD;  // lone high surrogate
                     }
+                } else if (cp >= 0xDC00 && cp <= 0xDFFF) {
+                    cp = 0xFFFD;  // lone low surrogate
                 }
                 append_utf8(out, cp);
                 break;
@@ -159,7 +173,7 @@ inline std::string parse_string(const char*& s, const char* end) {
     return out;
 }
 
-inline Value parse_value(const char*& s, const char* end);
+inline Value parse_value(const char*& s, const char* end, int depth);
 
 inline Value parse_number(const char*& s, const char* end) {
     const char* start = s;
@@ -184,7 +198,7 @@ inline void expect_literal(const char*& s, const char* end, const char* lit) {
     }
 }
 
-inline Value parse_object(const char*& s, const char* end) {
+inline Value parse_object(const char*& s, const char* end, int depth) {
     Value obj = Value::object();
     ++s;  // '{'
     skip_ws(s, end);
@@ -196,7 +210,7 @@ inline Value parse_object(const char*& s, const char* end) {
         skip_ws(s, end);
         if (s >= end || *s != ':') throw std::runtime_error("json: expected ':'");
         ++s;
-        obj.set(std::move(key), parse_value(s, end));
+        obj.set(std::move(key), parse_value(s, end, depth + 1));
         skip_ws(s, end);
         if (s >= end) throw std::runtime_error("json: unterminated object");
         if (*s == ',') { ++s; continue; }
@@ -206,13 +220,13 @@ inline Value parse_object(const char*& s, const char* end) {
     return obj;
 }
 
-inline Value parse_array(const char*& s, const char* end) {
+inline Value parse_array(const char*& s, const char* end, int depth) {
     Value arr = Value::array();
     ++s;  // '['
     skip_ws(s, end);
     if (s < end && *s == ']') { ++s; return arr; }
     while (true) {
-        arr.push_back(parse_value(s, end));
+        arr.push_back(parse_value(s, end, depth + 1));
         skip_ws(s, end);
         if (s >= end) throw std::runtime_error("json: unterminated array");
         if (*s == ',') { ++s; continue; }
@@ -222,13 +236,14 @@ inline Value parse_array(const char*& s, const char* end) {
     return arr;
 }
 
-inline Value parse_value(const char*& s, const char* end) {
+inline Value parse_value(const char*& s, const char* end, int depth) {
+    if (depth > MAX_DEPTH) throw std::runtime_error("json: nesting too deep");
     skip_ws(s, end);
     if (s >= end) throw std::runtime_error("json: unexpected end of input");
     char c = *s;
     if (c == '"') return Value::string(parse_string(s, end));
-    if (c == '{') return parse_object(s, end);
-    if (c == '[') return parse_array(s, end);
+    if (c == '{') return parse_object(s, end, depth);
+    if (c == '[') return parse_array(s, end, depth);
     if (c == 't') { expect_literal(s, end, "true"); return Value::boolean(true); }
     if (c == 'f') { expect_literal(s, end, "false"); return Value::boolean(false); }
     if (c == 'n') { expect_literal(s, end, "null"); return Value::null(); }
@@ -240,7 +255,7 @@ inline Value parse_value(const char*& s, const char* end) {
 inline Value parse(const std::string& text) {
     const char* s = text.data();
     const char* end = s + text.size();
-    Value v = detail::parse_value(s, end);
+    Value v = detail::parse_value(s, end, 0);
     detail::skip_ws(s, end);
     if (s != end) throw std::runtime_error("json: trailing content after value");
     return v;

@@ -106,6 +106,14 @@ def _tool_ok(result_json: str) -> bool:
         return False
 
 
+def _redact(text: str) -> str:
+    """Scrub secret-looking tokens from an error string before it lands in a
+    trace (a real provider SDK's exception may carry keys/URLs)."""
+    from ..tools import _scrub_secrets
+
+    return _scrub_secrets(text)[:200]
+
+
 def _event(trace: Any, event_type: str, **attrs: str) -> None:
     trace.add_event(event_type, [(k, v) for k, v in attrs.items()])
 
@@ -304,7 +312,7 @@ def run_runtime_plan(
                     payload = agents[current].step(model=model)
                 except Exception as exc:  # noqa: BLE001 — provider failure
                     trace.add_error(
-                        _c.TraceError(current, type(exc).__name__, str(exc)[:200])
+                        _c.TraceError(current, type(exc).__name__, _redact(str(exc)))
                     )
                     _event(trace, "provider_error", agent=current, kind=type(exc).__name__)
                     if on_provider_error == "abort":
@@ -335,6 +343,24 @@ def run_runtime_plan(
                 if not _enforce_policy(policy, trace, f"tool:{tool_name}", record_policy):
                     turn_status = "denied"
                     break
+                # Least privilege: an agent may only call the tools it declares.
+                if tool_name not in node.tools:
+                    trace.add_error(
+                        _c.TraceError(
+                            current,
+                            "UnauthorizedTool",
+                            f"agent {current!r} may not call tool {tool_name!r}",
+                        )
+                    )
+                    _event(trace, "tool_error", agent=current, tool=tool_name)
+                    if on_tool_error == "abort":
+                        turn_status = "error"
+                        break
+                    agents[current].append_tool(
+                        tool_name,
+                        json.dumps({"ok": False, "error": "tool not authorized for this agent"}),
+                    )
+                    continue
                 if not runtime.tools.has(tool_name):
                     trace.add_error(
                         _c.TraceError(current, "UnknownTool", f"tool {tool_name!r} not provided")
@@ -373,9 +399,12 @@ def run_runtime_plan(
 
             if turn_status == "over_budget":
                 final_status = "over_budget"
-                trace.add_error(
-                    _c.TraceError(current, "BudgetExceeded", "token or cost budget exceeded")
+                reason = (
+                    "wall-clock budget exceeded"
+                    if budget.over_wall()
+                    else "token or cost budget exceeded"
                 )
+                trace.add_error(_c.TraceError(current, "BudgetExceeded", reason))
                 _event(trace, "budget_exceeded", agent=current)
                 break
             if turn_status == "denied":
@@ -403,10 +432,9 @@ def run_runtime_plan(
             current = next_node
             runtime.router.set_active(current)
     except Exception as exc:  # noqa: BLE001 — record any failure as evidence
-        # The abort path is realized; the configured mode is surfaced for evidence.
         mode = failure_semantics.get("on_provider_error", "abort")
         final_status = "error"
-        trace.add_error(_c.TraceError(current, type(exc).__name__, str(exc)[:200]))
+        trace.add_error(_c.TraceError(current, type(exc).__name__, _redact(str(exc))))
         _event(trace, "error", agent=current, kind=type(exc).__name__, mode=mode)
 
     usage = budget.usage()
