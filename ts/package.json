@@ -1,0 +1,32 @@
+{
+  "name": "@marrow/ari",
+  "version": "0.1.0",
+  "description": "TypeScript frontend for the Marrow compiler: author an agent graph and emit an ARI manifest that is byte-for-byte identical to the Python frontend's output.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "pretest": "tsc",
+    "test": "node --test \"dist/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
