@@ -146,7 +146,7 @@ Canonical conventions:
 
 - **Purpose:** the lowered, fully-bound, executable plan. The C++-facing object.
 - **Required:** `version`, `graph_id`, `entrypoint`, `nodes`, `edges`, `tool_bindings`, `provider_bindings`, `policy_checkpoints`, `timeout_plan`, `retry_plan`, `evidence_plan`.
-- **Optional (additive):** `runtime_plan_id` (deterministic; required by Phase 5 and referenced by traces), `name`.
+- **Optional (additive):** `runtime_plan_id` (deterministic; required for replay and referenced by traces), `name`.
 - **JSON:**
   ```json
   {
@@ -223,7 +223,9 @@ Canonical conventions:
 - **C++ mapping:** carried in `runtime_plan.budget` and enforced by the
   executor's `BudgetMeter` (`governance.py`): steps/tokens/cost are metered each
   turn, a breach halts the run (`"exhausted"` / `"over_budget"`), and consumption
-  is recorded in the native `ExecutionTrace.budget_usage`. **[MVP]**
+  is recorded in the native `ExecutionTrace.budget_usage`. **[MVP]** Token/cost
+  limits are checked *after* each provider call (the breaching call still runs);
+  `max_steps` is the only pre-emptive bound, and there is no wall-clock budget.
 
 ### 3.10 EvidenceSpecIR
 

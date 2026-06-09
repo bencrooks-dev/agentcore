@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ARI PolicySpec",
-  "description": "Draft, non-normative ARI manifest for a governance checkpoint. Defined for completeness; not enforced by the MVP runtime.",
+  "description": "Draft, non-normative ARI manifest for a governance checkpoint, enforced at runtime by the executor's PolicyEngine.",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "action", "decision", "approval_required", "evidence_required"],

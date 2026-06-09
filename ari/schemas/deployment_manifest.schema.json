@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ARI DeploymentManifest",
-  "description": "Draft, non-normative ARI manifest describing how/where a RuntimePlan is deployed. Defined for completeness; not consumed by the MVP.",
+  "description": "Draft, non-normative ARI manifest describing how/where a RuntimePlan is deployed. Generated from a plan by make_deployment_manifest; actually deploying it is out of scope.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "name", "runtime_plan_id", "target"],

@@ -1,9 +1,8 @@
 # Compiler / Runtime Audit
 
-> Pre-implementation audit for the "AI-aware compiler/runtime" direction.
-> Read the repository before writing code; this document records what is
-> actually here, what is missing, what must not move, and the smallest
-> credible MVP. Nothing in this file changes behavior.
+> Pre-implementation audit for the "AI-aware compiler/runtime" direction. This
+> document records what is actually here, what is missing, what must not move,
+> and the smallest credible MVP. Nothing in this file changes behavior.
 
 **Repository state at audit:** branch `main` at `fe05bdd`, 120 tracked files.
 **Verified baseline (this machine):** clean `.venv`, `pip install -e ".[test]"`
@@ -21,7 +20,7 @@ Today Marrow is an **AI-aware native runtime** — a thread-safe C++ core
 reference implementation of **ARI**, the Agent Runtime Interface
 (`ARI-SPEC.md`).
 
-The brief's target is a thin **compiler layer** on top of that runtime:
+The target is a thin **compiler layer** on top of that runtime:
 
 ```
 Python agent graph  ->  ARI manifest JSON  ->  RuntimePlan JSON  ->  execute through the C++ runtime  ->  ExecutionTrace JSON
@@ -35,7 +34,7 @@ One framing correction the rest of this audit depends on:
 > define an `AgentGraph`, `RuntimePlan`, `ExecutionTrace`, `Policy`, `Budget`,
 > or `DeploymentManifest` document schema.
 
-So the brief's "ARI JSON" is really a **new, additive ARI *manifest* layer** —
+So "ARI JSON" here is really a **new, additive ARI *manifest* layer** —
 a declarative description of an agent system — that sits beside the existing
 behavioral spec. The MVP must introduce it as clearly-marked **draft** schemas
 and must not silently rewrite or contradict the normative interface spec
@@ -146,13 +145,13 @@ AgentGraph (new marrow.compiler types)
   `ProviderSpec` authoring types; `compile_to_ari`; `ari_to_runtime_plan`;
   validation; deterministic IDs; a `run_runtime_plan` lowering onto `Runtime`.
 - `ari/schemas/*.json` — minimal JSON Schemas for the seven manifest documents
-  the brief names; `ari/spec/` note marking them **draft, non-normative**.
+  the seven manifest documents; `ari/spec/` note marking them **draft, non-normative**.
 - `src/runtime_plan.{h,cpp}` + `src/execution_trace.{h,cpp}` — the *smallest*
   C++ types that can **represent and inspect** a RuntimePlan and hold an
   ExecutionTrace, bound to Python, proving the plan reaches the native layer.
   (Depth of "load" — full JSON parsing in C++ vs. constructed across the pybind
   boundary — is the main open design decision; see §5.)
-- `examples/python_to_ari_compile/` — the brief's e2e example with
+- `examples/python_to_ari_compile/` — the end-to-end example with
   `expected_ari.json` / `expected_runtime_plan.json` / `expected_trace.json`.
 - `tests/test_compiler_*.py` — graph→ARI, schema validation, invalid-graph /
   missing-provider / missing-tool failures, ARI→RuntimePlan, deterministic ID,
@@ -194,7 +193,7 @@ non-mock provider.
 6. **Python version floor.** `requires-python = ">=3.9"`. New Python must avoid
    3.10+-only syntax in shipped modules (the existing code uses
    `from __future__ import annotations` for this reason).
-7. **Scope creep.** The brief lists 13 IR objects; only a subset is executable
+7. **Scope creep.** The design lists 13 IR objects; only a subset is executable
    in the MVP. The rest are schema-only or documented-as-future. Resist building
    the unreferenced ones.
 8. **CI smoke coverage.** A new example only runs in CI if added to the smoke
