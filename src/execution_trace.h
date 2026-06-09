@@ -1,0 +1,87 @@
+// marrow — native ExecutionTrace.
+//
+// A portable record of one RuntimePlan execution. The executor (Python driver
+// over the C++ engine) records events and calls into this native object as the
+// run proceeds; Python then serialises it to ExecutionTrace JSON. Kept
+// dependency-free: events carry a type plus an ordered list of string
+// attributes rather than embedded JSON.
+#pragma once
+
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace marrow {
+
+struct TraceEvent {
+    std::string type;
+    std::vector<std::pair<std::string, std::string>> attributes;
+};
+
+struct ToolCall {
+    std::string agent;
+    std::string tool;
+    std::string args_json;
+    std::string result_json;
+    bool ok = true;
+};
+
+struct ProviderCall {
+    std::string agent;
+    std::string provider;
+    std::string model;
+    int prompt_tokens = 0;
+    int completion_tokens = 0;
+};
+
+struct TraceError {
+    std::string agent;
+    std::string kind;
+    std::string message;
+};
+
+class ExecutionTrace {
+public:
+    ExecutionTrace() = default;
+    ExecutionTrace(std::string trace_id, std::string runtime_plan_id);
+
+    void set_input(std::string input);
+    void set_started_at(std::int64_t ms) noexcept { started_at_ = ms; }
+    void set_completed_at(std::int64_t ms) noexcept { completed_at_ = ms; }
+    void set_final_status(std::string status) { final_status_ = std::move(status); }
+
+    void add_event(std::string type,
+                   std::vector<std::pair<std::string, std::string>> attributes = {});
+    void add_tool_call(ToolCall call);
+    void add_provider_call(ProviderCall call);
+    void add_error(TraceError error);
+
+    const std::string& trace_id() const noexcept { return trace_id_; }
+    const std::string& runtime_plan_id() const noexcept { return runtime_plan_id_; }
+    bool has_input() const noexcept { return has_input_; }
+    const std::string& input() const noexcept { return input_; }
+    std::int64_t started_at() const noexcept { return started_at_; }
+    std::int64_t completed_at() const noexcept { return completed_at_; }
+    const std::string& final_status() const noexcept { return final_status_; }
+
+    const std::vector<TraceEvent>& events() const noexcept { return events_; }
+    const std::vector<ToolCall>& tool_calls() const noexcept { return tool_calls_; }
+    const std::vector<ProviderCall>& provider_calls() const noexcept { return provider_calls_; }
+    const std::vector<TraceError>& errors() const noexcept { return errors_; }
+
+private:
+    std::string trace_id_;
+    std::string runtime_plan_id_;
+    bool has_input_ = false;
+    std::string input_;
+    std::int64_t started_at_ = 0;
+    std::int64_t completed_at_ = 0;
+    std::string final_status_ = "completed";
+    std::vector<TraceEvent> events_;
+    std::vector<ToolCall> tool_calls_;
+    std::vector<ProviderCall> provider_calls_;
+    std::vector<TraceError> errors_;
+};
+
+}  // namespace marrow

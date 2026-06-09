@@ -15,7 +15,7 @@ from __future__ import annotations
 from .ari_emit import canonical_json, compile_to_ari, graph_id
 from .errors import CompileError
 from .graph import AgentGraph, AgentNode, Edge, ProviderSpec, ToolSpec, always, contains
-from .runtime_plan import ari_to_runtime_plan, runtime_plan_id
+from .runtime_plan import ari_to_runtime_plan, load_runtime_plan, runtime_plan_id
 
 __all__ = [
     "AgentGraph",
@@ -30,5 +30,6 @@ __all__ = [
     "canonical_json",
     "ari_to_runtime_plan",
     "runtime_plan_id",
+    "load_runtime_plan",
     "CompileError",
 ]

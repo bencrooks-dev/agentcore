@@ -114,3 +114,64 @@ def ari_to_runtime_plan(ari: dict[str, Any]) -> dict[str, Any]:
 
     validate(plan, "runtime_plan.schema.json")
     return plan
+
+
+def load_runtime_plan(plan: dict[str, Any]):
+    """Construct a native ``RuntimePlan`` (from the C++ core) out of a plan dict.
+
+    The native core links no JSON parser; "loading" a plan means constructing
+    and populating the C++ object across the pybind boundary. This is the point
+    at which a compiled plan reaches, and becomes inspectable by, the native
+    runtime layer. Returns a ``marrow._marrow.RuntimePlan``.
+    """
+    from .. import _marrow as _c
+
+    native = _c.RuntimePlan()
+    native.set_meta(
+        plan["version"],
+        plan.get("runtime_plan_id", ""),
+        plan["graph_id"],
+        plan.get("name", ""),
+        plan["entrypoint"],
+    )
+    for node in plan["nodes"]:
+        native.add_node(
+            _c.RuntimeNode(
+                node["id"],
+                node["name"],
+                node["provider"],
+                node["system_prompt"],
+                list(node["tools"]),
+            )
+        )
+    for edge in plan["edges"]:
+        condition = edge["condition"]
+        native.add_edge(
+            _c.RuntimeEdge(
+                edge["from"],
+                edge["to"],
+                condition["type"],
+                condition.get("value", ""),
+            )
+        )
+    for name, binding in plan["tool_bindings"].items():
+        native.add_tool_binding(
+            _c.ToolBinding(
+                name,
+                int(binding["timeout_ms"]),
+                bool(binding["side_effects"]),
+                bool(binding["requires_approval"]),
+                canonical_json(binding["input_schema"]),
+                canonical_json(binding["output_schema"]),
+            )
+        )
+    for provider_id, binding in plan["provider_bindings"].items():
+        native.add_provider_binding(
+            _c.ProviderBinding(
+                provider_id,
+                binding["type"],
+                binding["model"],
+                binding["config_ref"],
+            )
+        )
+    return native
