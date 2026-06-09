@@ -11,6 +11,7 @@ from marrow.compiler import (
     PolicySpec,
     ProviderSpec,
     ToolSpec,
+    ari_to_runtime_plan,
     compile_to_ari,
 )
 from marrow.compiler.validate import validate
@@ -103,3 +104,44 @@ def test_rollback_unknown_agent_rejected():
     g.add_rollback_step("ghost")
     with pytest.raises(CompileError, match="unknown agent"):
         compile_to_ari(g)
+
+
+# --- lowering into the RuntimePlan -------------------------------------------
+
+
+def test_governance_lowers_into_runtime_plan():
+    plan = ari_to_runtime_plan(compile_to_ari(governed_graph()))
+    validate(plan, "runtime_plan.schema.json")
+    assert plan["policy_checkpoints"][0]["action"] == "provider:mock"
+    assert plan["budget"]["max_steps"] == 8
+    assert plan["failure_semantics"]["on_provider_error"] == "abort"
+    assert plan["rollback_plan"]["steps"] == [{"on": "agent_1", "action": "clear_state"}]
+
+
+def test_plain_plan_has_empty_checkpoints_and_no_governance():
+    plan = ari_to_runtime_plan(compile_to_ari(base_graph()))
+    assert plan["policy_checkpoints"] == []
+    for key in ("budget", "failure_semantics", "rollback_plan"):
+        assert key not in plan
+
+
+def test_lowering_rejects_dangling_rollback_in_hand_built_ari():
+    ari = compile_to_ari(governed_graph())
+    ari["rollback"]["steps"][0]["on"] = "ghost"
+    with pytest.raises(CompileError, match="unknown agent"):
+        ari_to_runtime_plan(ari)
+
+
+def test_lowering_rejects_invalid_policy_decision_in_hand_built_ari():
+    # The agent_graph schema (policy_spec enum) catches this before lowering.
+    ari = compile_to_ari(governed_graph())
+    ari["policies"][0]["decision"] = "perhaps"
+    with pytest.raises(CompileError, match="decision"):
+        ari_to_runtime_plan(ari)
+
+
+def test_lowering_rejects_duplicate_policy_id_in_hand_built_ari():
+    ari = compile_to_ari(governed_graph())
+    ari["policies"].append(dict(ari["policies"][0]))
+    with pytest.raises(CompileError, match="duplicate policy id"):
+        ari_to_runtime_plan(ari)

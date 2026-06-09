@@ -65,6 +65,17 @@ def _check_ari_refs(ari: dict[str, Any]) -> None:
             f"entrypoint {ari['entrypoint']!r} is not an agent in the graph"
         )
 
+    # Policy decisions are constrained by the schema's enum; uniqueness of ids is
+    # not (JSON Schema uniqueItems is unused here), so check it explicitly.
+    _check_unique("policy id", [p["id"] for p in ari.get("policies", [])])
+    rollback = ari.get("rollback")
+    if rollback:
+        for step in rollback["steps"]:
+            if step["on"] not in agent_ids:
+                raise CompileError(
+                    f"rollback step targets unknown agent {step['on']!r}"
+                )
+
 
 def ari_to_runtime_plan(ari: dict[str, Any]) -> dict[str, Any]:
     """Compile an ARI agent-graph manifest into a RuntimePlan dict.
@@ -119,7 +130,7 @@ def ari_to_runtime_plan(ari: dict[str, Any]) -> dict[str, Any]:
         "edges": [{**e, "condition": dict(e["condition"])} for e in ari["edges"]],
         "tool_bindings": tool_bindings,
         "provider_bindings": provider_bindings,
-        "policy_checkpoints": [],
+        "policy_checkpoints": [copy.deepcopy(p) for p in ari.get("policies", [])],
         "timeout_plan": {"default_timeout_ms": 0},
         "retry_plan": {"default": {"attempts": 1}},
         "evidence_plan": {
@@ -128,6 +139,14 @@ def ari_to_runtime_plan(ari: dict[str, Any]) -> dict[str, Any]:
             "record_policy_decisions": True,
         },
     }
+    # Governance is optional: only carry these when the graph specified them.
+    if "budget" in ari:
+        plan["budget"] = copy.deepcopy(ari["budget"])
+    if "failure_semantics" in ari:
+        plan["failure_semantics"] = copy.deepcopy(ari["failure_semantics"])
+    if "rollback" in ari:
+        plan["rollback_plan"] = copy.deepcopy(ari["rollback"])
+
     plan["runtime_plan_id"] = runtime_plan_id(plan)
 
     validate(plan, "runtime_plan.schema.json")
