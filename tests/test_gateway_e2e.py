@@ -136,6 +136,33 @@ def test_full_session_through_the_gateway(session):
     assert "tool_denied" in types and "tool_called" in types and "client_eof" in types
 
 
+def test_transparent_gateway_changes_nothing(tmp_path):
+    # The cautious first run: upstream + trace only, no governance config.
+    # The session must behave exactly as without the gateway.
+    trace_path = tmp_path / "trace.json"
+    config_path = tmp_path / "gateway.json"
+    config_path.write_text(
+        json.dumps({"upstream": [sys.executable, FAKE_SERVER], "trace_path": str(trace_path)})
+    )
+    s = GatewaySession(str(config_path))
+    try:
+        s.request("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
+                                 "clientInfo": {"name": "t"}})
+        listed = s.request("tools/list")
+        assert [t["name"] for t in listed["result"]["tools"]] == [
+            "echo", "boom", "delete_everything"
+        ]
+        ok = s.request("tools/call", {"name": "delete_everything", "arguments": {}})
+        assert ok["result"]["isError"] is False  # nothing configured -> nothing blocked
+    finally:
+        code = s.close()
+    assert code == 0
+    trace = json.loads(trace_path.read_text())
+    assert trace["tools_hidden"] == []
+    assert trace["policy_decisions"] == []
+    assert trace["budget"]["limits"] == {"max_calls": None, "max_wall_ms": None}
+
+
 def test_gateway_rejects_bad_config(tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"policies": []}))  # no upstream

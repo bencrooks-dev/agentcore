@@ -132,8 +132,11 @@ class Gateway:
         text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
         if self._cfg.redact:
             text = _scrub_secrets(text)
-        limit = self._cfg.max_record_bytes
-        return text if len(text) <= limit else text[:limit] + "…[truncated]"
+        data = text.encode("utf-8")
+        if len(data) <= self._cfg.max_record_bytes:
+            return text
+        clipped = data[: self._cfg.max_record_bytes].decode("utf-8", errors="ignore")
+        return clipped + "…[truncated]"
 
     # ----- gating ---------------------------------------------------------------
 
@@ -207,29 +210,36 @@ class Gateway:
         method = msg.get("method")
         msg_id = msg.get("id")
 
-        if method == "tools/call" and msg_id is not None:
+        if method == "tools/call":
             params = msg.get("params") or {}
             name = str(params.get("name", ""))
             allowed, reason = self.gate_tool_call(name)
             if not allowed:
                 self._denied += 1
                 self._event("tool_denied", tool=name, reason=reason or "")
+                if msg_id is None:
+                    # A notification can't be answered; dropping it is the only
+                    # fail-closed option (and gates the no-id smuggling path).
+                    return []
                 return [("client", _encode(_deny_response(msg_id, name, reason or "denied")))]
             self._budget.record_step()
-            pending = {
-                "tool": name,
-                "arguments": self._preview(params.get("arguments", {})),
-                "t0": time.monotonic(),
-            }
-            self._pending_calls[msg_id] = pending
+            if msg_id is not None:
+                self._pending_calls[msg_id] = {
+                    "tool": name,
+                    "arguments": self._preview(params.get("arguments", {})),
+                    "t0": time.monotonic(),
+                }
             self._event("tool_call_forwarded", tool=name)
-            return [("server", raw)]
+            return [("server", _encode(msg))]
 
         if method == "tools/list" and msg_id is not None:
             self._list_request_ids.add(msg_id)
         elif method == "initialize" and msg_id is not None:
             self._initialize_ids.add(msg_id)
-        return [("server", raw)]
+        # Forward the *parsed* message re-encoded, not the raw bytes: the
+        # gateway and the server must never disagree about what a message says
+        # (e.g. duplicate JSON keys parsing differently across implementations).
+        return [("server", _encode(msg))]
 
     def handle_server_line(self, raw: bytes) -> bytes:
         """Inspect one line from the server; returns the line to send the client."""
@@ -241,6 +251,12 @@ class Gateway:
         except ValueError:
             return raw  # information flows toward the client only; forward as-is
         if not isinstance(msg, dict):
+            return raw
+
+        if "method" in msg:
+            # A server -> client REQUEST or notification (roots/list, sampling,
+            # elicitation, ...). Its id space is independent of the client's —
+            # never confuse it with a response to a tracked client request.
             return raw
 
         msg_id = msg.get("id")
@@ -270,8 +286,10 @@ class Gateway:
                 names = [t.get("name", "") for t in visible]
 
                 def _set(t: dict) -> None:
-                    t["tools_visible"] = names
-                    t["tools_hidden"] = hidden
+                    # Merge: a paginated or repeated tools/list must accumulate,
+                    # not overwrite the record of earlier pages.
+                    t["tools_visible"] = sorted(set(t.get("tools_visible", [])) | set(names))
+                    t["tools_hidden"] = sorted(set(t.get("tools_hidden", [])) | set(hidden))
 
                 self._record(_set)
                 self._event(

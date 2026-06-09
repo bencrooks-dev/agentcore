@@ -8,6 +8,17 @@ from typing import Any
 
 _DECISIONS = ("allow", "deny", "require_approval")
 
+# A typo'd key must not silently weaken governance ("alowed_tools" would start
+# an ungoverned gateway). Unknown keys are rejected, at every level.
+_KNOWN_KEYS = {
+    "upstream", "name", "allowed_tools", "policies", "approvals",
+    "budget", "trace_path", "max_record_bytes", "redact",
+}
+_KNOWN_BUDGET_KEYS = {"max_calls", "max_wall_ms"}
+_KNOWN_POLICY_KEYS = {
+    "id", "action", "decision", "approval_required", "evidence_required", "description",
+}
+
 
 class GatewayError(ValueError):
     """Raised for invalid gateway configuration or protocol misuse."""
@@ -42,9 +53,16 @@ def _require(cond: bool, message: str) -> None:
         raise GatewayError(f"gateway config: {message}")
 
 
-def parse_config(raw: dict[str, Any]) -> GatewayConfig:
-    """Validate a raw config dict and return a :class:`GatewayConfig`."""
+def parse_config(raw: dict[str, Any], base_dir: Path | None = None) -> GatewayConfig:
+    """Validate a raw config dict and return a :class:`GatewayConfig`.
+
+    ``base_dir`` anchors a relative ``trace_path`` (the config file's directory
+    when loaded from disk) — MCP clients launch servers from arbitrary working
+    directories, so a cwd-relative trace would silently land elsewhere or fail.
+    """
     _require(isinstance(raw, dict), "top level must be an object")
+    unknown = set(raw) - _KNOWN_KEYS
+    _require(not unknown, f"unknown key(s) {sorted(unknown)} — refusing to start")
     upstream = raw.get("upstream")
     _require(
         isinstance(upstream, list) and upstream and all(isinstance(s, str) for s in upstream),
@@ -63,6 +81,8 @@ def parse_config(raw: dict[str, Any]) -> GatewayConfig:
     normalized = []
     for i, p in enumerate(policies):
         _require(isinstance(p, dict), f"policies[{i}] must be an object")
+        bad = set(p) - _KNOWN_POLICY_KEYS
+        _require(not bad, f"policies[{i}]: unknown key(s) {sorted(bad)}")
         action = p.get("action")
         _require(isinstance(action, str) and action, f"policies[{i}].action is required")
         decision = p.get("decision", "allow")
@@ -88,6 +108,8 @@ def parse_config(raw: dict[str, Any]) -> GatewayConfig:
 
     budget = raw.get("budget", {}) or {}
     _require(isinstance(budget, dict), "'budget' must be an object")
+    bad_budget = set(budget) - _KNOWN_BUDGET_KEYS
+    _require(not bad_budget, f"budget: unknown key(s) {sorted(bad_budget)}")
     max_calls = budget.get("max_calls")
     max_wall_ms = budget.get("max_wall_ms")
     for label, value in (("max_calls", max_calls), ("max_wall_ms", max_wall_ms)):
@@ -102,6 +124,14 @@ def parse_config(raw: dict[str, Any]) -> GatewayConfig:
         "'max_record_bytes' must be a positive integer",
     )
 
+    trace_path = raw.get("trace_path")
+    if trace_path is not None:
+        _require(isinstance(trace_path, str) and trace_path, "'trace_path' must be a string")
+        resolved = Path(trace_path)
+        if base_dir is not None and not resolved.is_absolute():
+            resolved = base_dir / resolved
+        trace_path = str(resolved)
+
     return GatewayConfig(
         upstream=list(upstream),
         name=str(raw.get("name", "marrow-gateway")),
@@ -110,18 +140,20 @@ def parse_config(raw: dict[str, Any]) -> GatewayConfig:
         approvals=list(approvals),
         max_calls=max_calls,
         max_wall_ms=max_wall_ms,
-        trace_path=raw.get("trace_path"),
+        trace_path=trace_path,
         max_record_bytes=max_record,
         redact=bool(raw.get("redact", True)),
     )
 
 
 def load_config(path: str | Path) -> GatewayConfig:
-    """Load and validate a gateway config file."""
+    """Load and validate a gateway config file. A relative ``trace_path`` is
+    resolved against the config file's directory."""
+    config_path = Path(path)
     try:
-        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        raw = json.loads(config_path.read_text(encoding="utf-8"))
     except OSError as exc:
         raise GatewayError(f"gateway config: cannot read {path}: {exc}") from exc
     except ValueError as exc:
         raise GatewayError(f"gateway config: {path} is not valid JSON: {exc}") from exc
-    return parse_config(raw)
+    return parse_config(raw, base_dir=config_path.resolve().parent)

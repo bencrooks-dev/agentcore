@@ -87,6 +87,25 @@ def test_cli_rejects_invalid_json(tmp_path):
     assert "not valid JSON" in proc.stderr
 
 
+def test_renders_a_crash_state_trace():
+    # The flight recorder's whole point is surviving a crash — the surviving
+    # artifact is final_status="running", completed_at=null, no calls yet.
+    trace = {
+        "schema": "marrow.gateway_trace/0.1",
+        "trace_id": "gw_crash",
+        "gateway": "g",
+        "upstream": {"command": ["x"], "server_info": None, "protocol_version": None},
+        "started_at": 1, "completed_at": None, "final_status": "running",
+        "tools_visible": [], "tools_hidden": [],
+        "events": [{"type": "gateway_started"}],
+        "tool_calls": [], "policy_decisions": [], "errors": [],
+        "budget": {"limits": {"max_calls": None, "max_wall_ms": None},
+                   "used": {"calls": 0, "denied": 0, "elapsed_ms": 0}},
+    }
+    html = render_html(trace)
+    assert "gw_crash" in html  # renders without a generator-side failure
+
+
 def test_hosted_viewer_page_is_in_sync():
     # docs/trace-viewer.html is generated; regenerating must produce the same
     # bytes, or the committed page has drifted from the template.

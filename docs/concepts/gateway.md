@@ -43,10 +43,17 @@ One JSON file per upstream server:
     {"id": "no-deletes", "action": "tool:delete_file", "decision": "deny"},
     {"id": "log-reads",  "action": "tool:read_file",  "decision": "allow", "evidence_required": true}
   ],
-  "budget": {"max_calls": 100, "max_wall_ms": 600000},
+  "budget": {"max_calls": 100},
   "trace_path": "gateway_trace.json"
 }
 ```
+
+A relative `trace_path` is resolved against the config file's directory (MCP
+clients launch servers from arbitrary working directories). `max_wall_ms` is a
+**session-lifetime** budget: the clock starts when the gateway launches and
+includes idle time, which suits one-shot or batch sessions — for a long-lived
+desktop client, prefer `max_calls`. Unknown config keys are rejected at startup,
+so a typo can't silently weaken governance.
 
 Then point your MCP client at the gateway instead of the server:
 
