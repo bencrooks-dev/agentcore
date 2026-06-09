@@ -156,6 +156,7 @@ class BudgetSpec:
     max_steps: int = 16
     max_tokens: int | None = None
     max_cost_usd: float | None = None
+    max_wall_ms: int | None = None
     id: str = "budget"
     currency: str | None = None
 
@@ -166,6 +167,8 @@ class BudgetSpec:
             "max_cost_usd": self.max_cost_usd,
             "max_steps": self.max_steps,
         }
+        if self.max_wall_ms is not None:
+            out["max_wall_ms"] = self.max_wall_ms
         if self.currency is not None:
             out["currency"] = self.currency
         return out

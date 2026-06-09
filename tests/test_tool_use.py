@@ -1,11 +1,13 @@
 """The tool-use loop: agents request tools, calls are policy-gated, invoked
 through the C++ ToolRegistry, recorded, and their results fed back."""
 import json
+import time
 
 from marrow import GenerationResponse, PyProviderBase
 from marrow.compiler import (
     AgentGraph,
     AgentNode,
+    BudgetSpec,
     FailureSemantics,
     PolicySpec,
     ProviderSpec,
@@ -176,3 +178,16 @@ def test_provider_error_record_and_continue():
     # The run continues past the provider failure rather than aborting.
     assert trace["final_status"] == "completed"
     assert any(e["kind"] == "RuntimeError" for e in trace["errors"])
+
+
+def test_wall_clock_budget_halts_a_slow_tool():
+    def slow(text):
+        time.sleep(0.05)
+        return text
+
+    g = _graph()
+    g.set_budget(BudgetSpec(max_steps=4, max_wall_ms=1))
+    trace = compile_and_run(
+        g, "go", tools={"echo": slow}, **_with(_ScriptedProvider("echo", {"text": "x"}, "final"))
+    )["trace"]
+    assert trace["final_status"] == "over_budget"

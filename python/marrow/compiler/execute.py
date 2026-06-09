@@ -270,6 +270,13 @@ def run_runtime_plan(
                 final_status = "exhausted"
                 _event(trace, "max_steps_reached", agent=current)
                 break
+            if budget.over_wall():
+                final_status = "over_budget"
+                trace.add_error(
+                    _c.TraceError(current, "BudgetExceeded", "wall-clock budget exceeded")
+                )
+                _event(trace, "budget_exceeded", agent=current)
+                break
             budget.record_step()
             node = nodes[current]
 
@@ -316,7 +323,7 @@ def run_runtime_plan(
                             current, node.provider, model, prompt_tokens, completion_tokens
                         )
                     )
-                if budget.over_tokens() or budget.over_cost():
+                if budget.over_tokens() or budget.over_cost() or budget.over_wall():
                     turn_status = "over_budget"
                     break
 

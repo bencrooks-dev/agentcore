@@ -8,6 +8,7 @@ action or a budget is exceeded.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -99,7 +100,9 @@ class BudgetMeter:
         self.max_steps = budget["max_steps"] if budget else DEFAULT_MAX_STEPS
         self.max_tokens = budget.get("max_tokens") if budget else None
         self.max_cost_usd = budget.get("max_cost_usd") if budget else None
+        self.max_wall_ms = budget.get("max_wall_ms") if budget else None
         self._pricing = pricing if pricing is not None else {}
+        self._start = time.monotonic()
         self.steps = 0
         self.prompt_tokens = 0
         self.completion_tokens = 0
@@ -107,6 +110,12 @@ class BudgetMeter:
 
     def can_start_step(self) -> bool:
         return self.steps < self.max_steps
+
+    def elapsed_ms(self) -> int:
+        return int((time.monotonic() - self._start) * 1000)
+
+    def over_wall(self) -> bool:
+        return self.max_wall_ms is not None and self.elapsed_ms() > self.max_wall_ms
 
     def record_step(self) -> None:
         self.steps += 1

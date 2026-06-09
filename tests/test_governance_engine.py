@@ -1,4 +1,6 @@
 """Unit tests for the PolicyEngine and BudgetMeter (no runtime needed)."""
+import time
+
 from marrow.compiler.governance import BudgetMeter, PolicyEngine
 
 
@@ -110,6 +112,21 @@ def test_mock_model_has_zero_cost():
     meter.record_provider_usage("mock-echo", 100, 100)
     assert meter.cost_usd == 0.0
     assert not meter.over_cost()
+
+
+def test_wall_clock_budget_trips():
+    meter = BudgetMeter(
+        {"max_steps": 10, "max_tokens": None, "max_cost_usd": None, "max_wall_ms": 1}
+    )
+    assert not meter.over_wall()  # not yet
+    time.sleep(0.01)  # 10ms > 1ms
+    assert meter.over_wall()
+
+
+def test_no_wall_budget_is_never_over():
+    meter = BudgetMeter(None)
+    assert meter.max_wall_ms is None
+    assert not meter.over_wall()
 
 
 def test_usage_dict_shape():
