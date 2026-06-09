@@ -1,12 +1,13 @@
 """Lower an ARI agent-graph manifest into a RuntimePlan.
 
-This is the core compiler step (brief Phase 5): validate required fields, graph
-edges, provider references, and tool references; resolve provider/tool bindings;
-and emit a RuntimePlan with a deterministic ``runtime_plan_id``. The output
-validates against ``ari/schemas/runtime_plan.schema.json``.
+The core compiler step: validate required fields, graph edges, provider
+references, and tool references; resolve provider/tool bindings; and emit a
+RuntimePlan with a deterministic ``runtime_plan_id``. The output validates
+against ``ari/schemas/runtime_plan.schema.json``.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 from typing import Any
 
@@ -25,7 +26,21 @@ def runtime_plan_id(plan: dict[str, Any]) -> str:
     return "rp_" + digest[:16]
 
 
+def _check_unique(label: str, ids: list[str]) -> None:
+    seen: set[str] = set()
+    for i in ids:
+        if i in seen:
+            raise CompileError(f"duplicate {label}: {i!r}")
+        seen.add(i)
+
+
 def _check_ari_refs(ari: dict[str, Any]) -> None:
+    # ``ari`` may be any dict (not just frontend output), so re-establish the
+    # uniqueness invariants the frontend guarantees before resolving references.
+    _check_unique("provider id", [p["id"] for p in ari["providers"]])
+    _check_unique("tool name", [t["name"] for t in ari["tools"]])
+    _check_unique("agent id", [a["id"] for a in ari["agents"]])
+
     provider_ids = {p["id"] for p in ari["providers"]}
     tool_names = {t["name"] for t in ari["tools"]}
     agent_ids = {a["id"] for a in ari["agents"]}
@@ -72,10 +87,13 @@ def ari_to_runtime_plan(ari: dict[str, Any]) -> dict[str, Any]:
         for a in ari["agents"]
     ]
 
+    # Deep-copy the nested schemas so the plan is a standalone artifact: mutating
+    # the source ARI afterwards must not silently alter the plan (which would
+    # break its content-addressed runtime_plan_id).
     tool_bindings = {
         t["name"]: {
-            "input_schema": t["input_schema"],
-            "output_schema": t["output_schema"],
+            "input_schema": copy.deepcopy(t["input_schema"]),
+            "output_schema": copy.deepcopy(t["output_schema"]),
             "side_effects": t["side_effects"],
             "timeout_ms": t["timeout_ms"],
             "requires_approval": t["requires_approval"],
@@ -98,7 +116,7 @@ def ari_to_runtime_plan(ari: dict[str, Any]) -> dict[str, Any]:
         "name": ari["name"],
         "entrypoint": ari["entrypoint"],
         "nodes": nodes,
-        "edges": [dict(e) for e in ari["edges"]],
+        "edges": [{**e, "condition": dict(e["condition"])} for e in ari["edges"]],
         "tool_bindings": tool_bindings,
         "provider_bindings": provider_bindings,
         "policy_checkpoints": [],

@@ -77,6 +77,35 @@ def test_bad_entrypoint_raises():
         ari_to_runtime_plan(ari)
 
 
+def test_duplicate_agent_id_in_ari_rejected():
+    # A hand-built ARI (bypassing the frontend) with two agents sharing an id
+    # must be rejected here, not silently deduped at execution time.
+    ari = echo_ari()
+    ari["agents"] = [ari["agents"][0], dict(ari["agents"][0])]
+    with pytest.raises(CompileError, match="duplicate agent id"):
+        ari_to_runtime_plan(ari)
+
+
+def test_plan_is_standalone_of_source_ari():
+    ari = echo_ari()
+    plan = ari_to_runtime_plan(ari)
+    plan_id = plan["runtime_plan_id"]
+    # Mutating the source ARI after compiling must not change the plan.
+    ari["tools"][0]["input_schema"]["injected"] = 999
+    assert "injected" not in plan["tool_bindings"]["echo"]["input_schema"]
+    assert plan["runtime_plan_id"] == plan_id
+
+
+def test_plan_edge_condition_is_standalone():
+    g = echo_graph()
+    g.add_agent(AgentNode(id="agent_2", name="Second", provider="mock"))
+    g.add_edge("agent_1", "agent_2", when_contains="X")
+    ari = compile_to_ari(g)
+    plan = ari_to_runtime_plan(ari)
+    ari["edges"][0]["condition"]["value"] = "MUTATED"
+    assert plan["edges"][0]["condition"]["value"] == "X"
+
+
 def test_multi_node_plan_carries_edges():
     g = echo_graph()
     g.add_agent(AgentNode(id="agent_2", name="Second", provider="mock"))
