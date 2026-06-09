@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARI RuntimePlan",
+  "description": "Draft, non-normative lowered execution plan produced by the Marrow compiler from an AgentGraph manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "graph_id", "entrypoint", "nodes", "edges", "tool_bindings", "provider_bindings", "policy_checkpoints", "timeout_plan", "retry_plan", "evidence_plan"],
+  "properties": {
+    "version": {"type": "string"},
+    "runtime_plan_id": {"type": "string"},
+    "graph_id": {"type": "string"},
+    "name": {"type": "string"},
+    "entrypoint": {"type": "string"},
+    "nodes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/runtime_node"}},
+    "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
+    "tool_bindings": {"type": "object"},
+    "provider_bindings": {"type": "object"},
+    "policy_checkpoints": {"type": "array", "items": {"type": "object"}},
+    "timeout_plan": {"type": "object"},
+    "retry_plan": {"type": "object"},
+    "evidence_plan": {"type": "object"}
+  },
+  "$defs": {
+    "runtime_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "provider", "system_prompt", "tools"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "provider": {"type": "string"},
+        "system_prompt": {"type": "string"},
+        "tools": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "condition"],
+      "properties": {
+        "from": {"type": "string"},
+        "to": {"type": "string"},
+        "condition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {"type": "string", "enum": ["always", "contains"]},
+            "value": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

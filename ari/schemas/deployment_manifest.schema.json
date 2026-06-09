@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARI DeploymentManifest",
+  "description": "Draft, non-normative ARI manifest describing how/where a RuntimePlan is deployed. Defined for completeness; not consumed by the MVP.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "runtime_plan_id", "target"],
+  "properties": {
+    "version": {"type": "string"},
+    "name": {"type": "string"},
+    "runtime_plan_id": {"type": "string"},
+    "target": {"type": "string"},
+    "replicas": {"type": "integer"},
+    "env": {"type": "object"}
+  }
+}

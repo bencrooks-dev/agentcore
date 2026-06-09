@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARI AgentGraph",
+  "description": "Draft, non-normative ARI manifest describing an agent system. Not part of normative ARI 0.1 (see ari/spec/README.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "agents", "edges", "tools", "providers", "entrypoint"],
+  "properties": {
+    "version": {"type": "string"},
+    "name": {"type": "string"},
+    "metadata": {"type": "object"},
+    "providers": {"type": "array", "items": {"$ref": "provider_spec.schema.json"}},
+    "tools": {"type": "array", "items": {"$ref": "tool_spec.schema.json"}},
+    "agents": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/agent_node"}},
+    "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
+    "entrypoint": {"type": "string"}
+  },
+  "$defs": {
+    "agent_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "provider", "system_prompt", "tools", "state"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "provider": {"type": "string"},
+        "system_prompt": {"type": "string"},
+        "tools": {"type": "array", "items": {"type": "string"}},
+        "state": {"type": "object"},
+        "metadata": {"type": "object"}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "condition"],
+      "properties": {
+        "from": {"type": "string"},
+        "to": {"type": "string"},
+        "condition": {"$ref": "#/$defs/condition"}
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {"type": "string", "enum": ["always", "contains"]},
+        "value": {"type": "string"}
+      }
+    }
+  }
+}
