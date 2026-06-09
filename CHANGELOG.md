@@ -4,6 +4,28 @@ All notable changes to `marrow` are documented here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — early compiler layer (experimental)
+
+- **`marrow.compiler`** — a Python frontend (`AgentGraph` / `AgentNode` /
+  `ToolSpec` / `ProviderSpec`) that compiles a declaratively-defined agent graph
+  to an **ARI manifest**, lowers it to a **RuntimePlan** with deterministic ids,
+  executes it through the existing native runtime, and emits an **ExecutionTrace**.
+  Mock provider only; no API key. Additive — existing runtime APIs and tests are
+  unchanged.
+- **`ari/schemas/`** — draft, non-normative JSON Schemas for the manifest layer
+  (`agent_graph`, `tool_spec`, `provider_spec`, `policy_spec`, `runtime_plan`,
+  `execution_trace`, `deployment_manifest`) with a stdlib validator. These are
+  **not** part of normative ARI 0.1 (see `ari/spec/README.md`).
+- **`src/runtime_plan.{h,cpp}`, `src/execution_trace.{h,cpp}`** — native types
+  that hold and inspect a RuntimePlan and record an ExecutionTrace, bound to
+  Python. The core still links no JSON parser; plans are constructed across the
+  binding boundary.
+- **`examples/python_to_ari_compile/`** — runnable end-to-end example
+  (Python graph → ARI → RuntimePlan → execute → trace) with golden fixtures.
+- **`docs/compiler_audit.md`, `docs/compiler_architecture.md`,
+  `docs/marrow_compiler_positioning.md`, `docs/language_roadmap.md`** — design,
+  positioning (no overclaiming), and the frontends-emit-ARI language roadmap.
+
 ## [0.1.0rc1] — 2026-05-28
 
 First release candidate published to PyPI (as `marrow-rt`). Bundles the

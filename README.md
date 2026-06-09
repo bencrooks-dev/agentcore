@@ -360,6 +360,22 @@ What is **not** done and should not yet be relied on:
 - An **ARI conformance kit** — the executable proof of conformance (see
   [`docs/ari-strategy.md`](docs/ari-strategy.md))
 
+### Compiler (experimental)
+
+An early, additive **compiler layer** turns a declaratively-defined agent graph
+into a portable, executable plan:
+
+```
+Python AgentGraph  →  ARI manifest (JSON)  →  RuntimePlan (JSON)  →  native runtime  →  ExecutionTrace (JSON)
+```
+
+It does not change the runtime or the normative [ARI spec](ARI-SPEC.md), compiles
+agent graphs (not arbitrary Python), and runs on a mock provider with no API key.
+See [`docs/compiler_architecture.md`](docs/compiler_architecture.md),
+[`docs/marrow_compiler_positioning.md`](docs/marrow_compiler_positioning.md), and
+the runnable [`examples/python_to_ari_compile/`](examples/python_to_ari_compile/).
+This is an **early** compiler — see those docs for what is built versus specified.
+
 ### Roadmap
 
 - **v0.1** — Real provider tests w/ key-gated CI; ToolCall integration in the step loop; streaming benchmark vs LangGraph

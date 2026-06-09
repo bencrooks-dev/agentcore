@@ -12,9 +12,14 @@ edit_uri: edit/main/docs/
 exclude_docs: |
   pdf/
   pitch/
+  plans/
   market-research.md
   ari-strategy.md
   ari-rfc-process.md
+  compiler_audit.md
+  compiler_architecture.md
+  marrow_compiler_positioning.md
+  language_roadmap.md
 
 theme:
   name: material
