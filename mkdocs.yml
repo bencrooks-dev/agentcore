@@ -23,9 +23,14 @@ exclude_docs: |
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  icon:
+    repo: fontawesome/brands/github
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - navigation.tracking
     - content.code.copy
@@ -77,6 +82,15 @@ markdown_extensions:
   - toc:
       permalink: true
   - attr_list
+  - md_in_html
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/bencrooks-dev/marrow
 
 nav:
   - Home: index.md

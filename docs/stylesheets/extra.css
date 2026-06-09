@@ -1,0 +1,163 @@
+/* Marrow landing-page styles. Uses Material's CSS variables so light + dark
+   themes both work. */
+
+:root {
+  --mw-accent: #7c3aed;
+  --mw-accent-2: #4f46e5;
+}
+
+/* ---- Hero ---------------------------------------------------------------- */
+
+.mw-hero {
+  margin: -1.2rem -0.8rem 2.5rem;
+  padding: 4rem 1.2rem 3.2rem;
+  text-align: center;
+  background:
+    radial-gradient(1100px 420px at 50% -12%, rgba(124, 58, 237, 0.20), transparent 62%),
+    radial-gradient(900px 360px at 80% 0%, rgba(79, 70, 229, 0.14), transparent 60%);
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.mw-hero h1 {
+  font-size: 3rem;
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.5rem;
+}
+
+.mw-hero .mw-tagline {
+  font-size: 1.35rem;
+  font-weight: 600;
+  max-width: 44rem;
+  margin: 0 auto 1rem;
+}
+
+.mw-hero .mw-sub {
+  font-size: 1.02rem;
+  color: var(--md-default-fg-color--light);
+  max-width: 42rem;
+  margin: 0 auto 1.5rem;
+}
+
+.mw-badges {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 0 auto 1.7rem;
+}
+
+.mw-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.22rem 0.65rem;
+  border-radius: 1rem;
+  background: var(--md-default-fg-color--lightest);
+  color: var(--md-default-fg-color--light);
+  white-space: nowrap;
+}
+
+.mw-badge--accent {
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--mw-accent);
+}
+
+.mw-cta {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.mw-cta .md-button {
+  margin: 0;
+}
+
+/* ---- Layered ARI stack -------------------------------------------------- */
+
+.mw-stack {
+  max-width: 30rem;
+  margin: 1.5rem auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mw-layer {
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  background: var(--md-default-bg-color);
+  font-size: 0.86rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.mw-layer b { font-weight: 700; }
+.mw-layer span { color: var(--md-default-fg-color--light); font-size: 0.78rem; }
+
+.mw-layer--ari {
+  border-color: var(--mw-accent);
+  background: rgba(124, 58, 237, 0.10);
+  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.35) inset;
+}
+
+/* ---- Compile pipeline --------------------------------------------------- */
+
+.mw-pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
+  margin: 1.2rem auto 0;
+  max-width: 54rem;
+}
+
+.mw-node {
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  background: var(--md-code-bg-color);
+  font-family: var(--md-code-font-family);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mw-node--accent {
+  border-color: var(--mw-accent);
+  color: var(--mw-accent);
+}
+
+.mw-arrow {
+  color: var(--mw-accent);
+  font-weight: 800;
+}
+
+/* ---- Section helper ----------------------------------------------------- */
+
+.mw-section-title {
+  text-align: center;
+  margin-top: 3rem;
+}
+
+.mw-center { text-align: center; }
+
+/* Grid cards: round the corners a touch and lift on hover. */
+.md-typeset .grid.cards > ul > li {
+  border-radius: 0.7rem;
+  transition: border-color 125ms, box-shadow 125ms;
+}
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--mw-accent);
+  box-shadow: 0 4px 18px rgba(124, 58, 237, 0.12);
+}
+
+@media screen and (max-width: 44.9em) {
+  .mw-hero h1 { font-size: 2.2rem; }
+  .mw-hero .mw-tagline { font-size: 1.1rem; }
+}
