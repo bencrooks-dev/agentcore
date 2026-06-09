@@ -358,6 +358,32 @@ PYBIND11_MODULE(_marrow, m) {
         .def_readwrite("kind",    &TraceError::kind)
         .def_readwrite("message", &TraceError::message);
 
+    py::class_<PolicyDecision>(m, "PolicyDecision")
+        .def(py::init([](std::string action, std::string decision, bool allowed,
+                         bool approval_required, bool evidence_required) {
+                 return PolicyDecision{std::move(action), std::move(decision), allowed,
+                                       approval_required, evidence_required};
+             }),
+             py::arg("action"), py::arg("decision"), py::arg("allowed") = true,
+             py::arg("approval_required") = false, py::arg("evidence_required") = false)
+        .def_readwrite("action",            &PolicyDecision::action)
+        .def_readwrite("decision",          &PolicyDecision::decision)
+        .def_readwrite("allowed",           &PolicyDecision::allowed)
+        .def_readwrite("approval_required", &PolicyDecision::approval_required)
+        .def_readwrite("evidence_required", &PolicyDecision::evidence_required);
+
+    py::class_<BudgetUsage>(m, "BudgetUsage")
+        .def(py::init([](int steps, int prompt_tokens, int completion_tokens,
+                         double cost_usd) {
+                 return BudgetUsage{steps, prompt_tokens, completion_tokens, cost_usd};
+             }),
+             py::arg("steps") = 0, py::arg("prompt_tokens") = 0,
+             py::arg("completion_tokens") = 0, py::arg("cost_usd") = 0.0)
+        .def_readwrite("steps",             &BudgetUsage::steps)
+        .def_readwrite("prompt_tokens",     &BudgetUsage::prompt_tokens)
+        .def_readwrite("completion_tokens", &BudgetUsage::completion_tokens)
+        .def_readwrite("cost_usd",          &BudgetUsage::cost_usd);
+
     py::class_<ExecutionTrace>(m, "ExecutionTrace")
         .def(py::init<>())
         .def(py::init<std::string, std::string>(),
@@ -368,9 +394,11 @@ PYBIND11_MODULE(_marrow, m) {
         .def("set_final_status", &ExecutionTrace::set_final_status)
         .def("add_event", &ExecutionTrace::add_event, py::arg("type"),
              py::arg("attributes") = std::vector<std::pair<std::string, std::string>>{})
-        .def("add_tool_call",     &ExecutionTrace::add_tool_call)
-        .def("add_provider_call", &ExecutionTrace::add_provider_call)
-        .def("add_error",         &ExecutionTrace::add_error)
+        .def("add_tool_call",      &ExecutionTrace::add_tool_call)
+        .def("add_provider_call",  &ExecutionTrace::add_provider_call)
+        .def("add_error",          &ExecutionTrace::add_error)
+        .def("add_policy_decision", &ExecutionTrace::add_policy_decision)
+        .def("set_budget_usage",   &ExecutionTrace::set_budget_usage)
         .def_property_readonly("trace_id",        &ExecutionTrace::trace_id)
         .def_property_readonly("runtime_plan_id", &ExecutionTrace::runtime_plan_id)
         .def_property_readonly("has_input",       &ExecutionTrace::has_input)
@@ -378,8 +406,12 @@ PYBIND11_MODULE(_marrow, m) {
         .def_property_readonly("started_at",      &ExecutionTrace::started_at)
         .def_property_readonly("completed_at",    &ExecutionTrace::completed_at)
         .def_property_readonly("final_status",    &ExecutionTrace::final_status)
-        .def("events",         &ExecutionTrace::events)
-        .def("tool_calls",     &ExecutionTrace::tool_calls)
-        .def("provider_calls", &ExecutionTrace::provider_calls)
-        .def("errors",         &ExecutionTrace::errors);
+        .def("events",            &ExecutionTrace::events)
+        .def("tool_calls",        &ExecutionTrace::tool_calls)
+        .def("provider_calls",    &ExecutionTrace::provider_calls)
+        .def("errors",            &ExecutionTrace::errors)
+        .def("policy_decisions",  &ExecutionTrace::policy_decisions)
+        .def_property_readonly("has_budget_usage", &ExecutionTrace::has_budget_usage)
+        .def("budget_usage",      &ExecutionTrace::budget_usage,
+             py::return_value_policy::copy);
 }

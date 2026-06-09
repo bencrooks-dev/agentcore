@@ -41,6 +41,21 @@ struct TraceError {
     std::string message;
 };
 
+struct PolicyDecision {
+    std::string action;
+    std::string decision;        // "allow" | "deny" | "require_approval"
+    bool allowed = true;
+    bool approval_required = false;
+    bool evidence_required = false;
+};
+
+struct BudgetUsage {
+    int steps = 0;
+    int prompt_tokens = 0;
+    int completion_tokens = 0;
+    double cost_usd = 0.0;
+};
+
 class ExecutionTrace {
 public:
     ExecutionTrace() = default;
@@ -56,6 +71,8 @@ public:
     void add_tool_call(ToolCall call);
     void add_provider_call(ProviderCall call);
     void add_error(TraceError error);
+    void add_policy_decision(PolicyDecision decision);
+    void set_budget_usage(BudgetUsage usage);
 
     const std::string& trace_id() const noexcept { return trace_id_; }
     const std::string& runtime_plan_id() const noexcept { return runtime_plan_id_; }
@@ -69,6 +86,9 @@ public:
     const std::vector<ToolCall>& tool_calls() const noexcept { return tool_calls_; }
     const std::vector<ProviderCall>& provider_calls() const noexcept { return provider_calls_; }
     const std::vector<TraceError>& errors() const noexcept { return errors_; }
+    const std::vector<PolicyDecision>& policy_decisions() const noexcept { return policy_decisions_; }
+    bool has_budget_usage() const noexcept { return has_budget_usage_; }
+    const BudgetUsage& budget_usage() const noexcept { return budget_usage_; }
 
 private:
     std::string trace_id_;
@@ -82,6 +102,9 @@ private:
     std::vector<ToolCall> tool_calls_;
     std::vector<ProviderCall> provider_calls_;
     std::vector<TraceError> errors_;
+    std::vector<PolicyDecision> policy_decisions_;
+    bool has_budget_usage_ = false;
+    BudgetUsage budget_usage_{};
 };
 
 }  // namespace marrow

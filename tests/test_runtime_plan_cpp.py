@@ -111,3 +111,30 @@ def test_default_trace_status_is_completed():
     tr = _c.ExecutionTrace()
     assert tr.final_status == "completed"
     assert tr.events() == []
+
+
+def test_native_trace_records_policy_and_budget():
+    tr = _c.ExecutionTrace("tr_x", "rp_y")
+    tr.add_policy_decision(
+        _c.PolicyDecision("provider:mock", "allow", True, False, True)
+    )
+    tr.set_budget_usage(
+        _c.BudgetUsage(steps=2, prompt_tokens=3, completion_tokens=7, cost_usd=0.0)
+    )
+    decisions = tr.policy_decisions()
+    assert decisions[0].action == "provider:mock"
+    assert decisions[0].decision == "allow"
+    assert decisions[0].allowed is True
+    assert decisions[0].evidence_required is True
+
+    assert tr.has_budget_usage
+    usage = tr.budget_usage()
+    assert usage.steps == 2
+    assert (usage.prompt_tokens, usage.completion_tokens) == (3, 7)
+    assert usage.cost_usd == 0.0
+
+
+def test_native_trace_has_no_budget_usage_by_default():
+    tr = _c.ExecutionTrace()
+    assert tr.has_budget_usage is False
+    assert tr.policy_decisions() == []

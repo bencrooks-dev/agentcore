@@ -30,4 +30,13 @@ void ExecutionTrace::add_error(TraceError error) {
     errors_.push_back(std::move(error));
 }
 
+void ExecutionTrace::add_policy_decision(PolicyDecision decision) {
+    policy_decisions_.push_back(std::move(decision));
+}
+
+void ExecutionTrace::set_budget_usage(BudgetUsage usage) {
+    budget_usage_ = usage;
+    has_budget_usage_ = true;
+}
+
 }  // namespace marrow
