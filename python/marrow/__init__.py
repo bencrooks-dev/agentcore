@@ -1,7 +1,7 @@
 """marrow — lightweight C++ core for AI agent orchestration."""
 
 from . import _marrow as _c
-from . import logging_config, policy, providers, state_store, tracing, usage
+from . import compiler, logging_config, policy, providers, state_store, tracing, usage
 from .asyncio_bridge import AsyncAgent, AsyncRuntime, to_thread
 from .graph import Graph, GraphExhausted, GraphResult
 from .graph import run as run_graph
@@ -64,6 +64,7 @@ __all__ = [
     "state_store",
     "tracing",
     "usage",
+    "compiler",
 ]
 
 __version__ = "0.1.0rc1"

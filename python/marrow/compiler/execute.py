@@ -16,7 +16,6 @@ import hashlib
 import time
 from typing import Any
 
-from .. import Agent, Runtime
 from .. import _marrow as _c
 from .errors import CompileError
 from .validate import validate
@@ -126,6 +125,11 @@ def run_runtime_plan(plan: dict[str, Any], initial_input: str) -> dict[str, Any]
     provider type the MVP cannot execute. The returned trace validates against
     ``execution_trace.schema.json``.
     """
+    # Imported lazily so importing the compiler does not pull in the full SDK
+    # until an execution is actually requested (and to avoid an import cycle
+    # when ``marrow`` imports ``marrow.compiler``).
+    from .. import Agent, Runtime
+
     validate(plan, "runtime_plan.schema.json")
 
     nodes = {n["id"]: n for n in plan["nodes"]}

@@ -13,6 +13,7 @@ the ARI manifests it produces are not normative ARI 0.1 (see
 from __future__ import annotations
 
 from .ari_emit import canonical_json, compile_to_ari, graph_id
+from .compile import compile_and_run, compile_graph
 from .errors import CompileError
 from .execute import run_runtime_plan
 from .graph import AgentGraph, AgentNode, Edge, ProviderSpec, ToolSpec, always, contains
@@ -33,5 +34,7 @@ __all__ = [
     "runtime_plan_id",
     "load_runtime_plan",
     "run_runtime_plan",
+    "compile_graph",
+    "compile_and_run",
     "CompileError",
 ]
