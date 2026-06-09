@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from .ari_emit import canonical_json, compile_to_ari, graph_id
 from .compile import compile_and_run, compile_graph
+from .deploy import make_deployment_manifest
 from .errors import CompileError
 from .execute import run_runtime_plan
 from .graph import (
@@ -29,6 +30,7 @@ from .graph import (
     always,
     contains,
 )
+from .replay import normalize_trace, replay, traces_equivalent
 from .runtime_plan import ari_to_runtime_plan, load_runtime_plan, runtime_plan_id
 
 __all__ = [
@@ -52,5 +54,9 @@ __all__ = [
     "run_runtime_plan",
     "compile_graph",
     "compile_and_run",
+    "replay",
+    "traces_equivalent",
+    "normalize_trace",
+    "make_deployment_manifest",
     "CompileError",
 ]
