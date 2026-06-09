@@ -1,10 +1,15 @@
 <div align="center">
 
-# marrow
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/marrow-logo-light.png">
+  <img alt="Marrow" src="docs/assets/marrow-logo.png" width="400">
+</picture>
 
-**The embeddable agent runtime — for robots, edge devices, and native apps where you can't ship Python.**
+<br/><br/>
 
-*Reference implementation of **[ARI](ARI-SPEC.md)**, the Agent Runtime Interface.*
+**The native runtime — and compiler — that runs an agent, below MCP and A2A.**
+
+*Reference implementation of **[ARI](ARI-SPEC.md)**, the Agent Runtime Interface. Embeddable in C++; authored in Python or TypeScript.*
 
 [![CI](https://github.com/bencrooks-dev/marrow/actions/workflows/ci.yml/badge.svg)](https://github.com/bencrooks-dev/marrow/actions/workflows/ci.yml)
 [![Wheels](https://github.com/bencrooks-dev/marrow/actions/workflows/wheels.yml/badge.svg)](https://github.com/bencrooks-dev/marrow/actions/workflows/wheels.yml)
@@ -17,10 +22,17 @@
 
 ---
 
-`marrow` is a native **C++17 agent runtime** — the loop that holds conversation
-state, calls a model, dispatches tools, and routes messages between agents — with
-an ergonomic Python binding on top. It is the **reference implementation of
-[ARI](ARI-SPEC.md)**, a language-neutral contract for the agent *runtime* layer.
+`marrow` is two things on one native core:
+
+1. A native **C++17 agent runtime** — the loop that holds conversation state,
+   calls a model, dispatches tools, and routes messages between agents — with
+   ergonomic Python bindings. It is the **reference implementation of
+   [ARI](ARI-SPEC.md)**, a language-neutral contract for the agent *runtime* layer.
+2. An early **AI-aware compiler**: author an agent graph (in Python or
+   TypeScript), and marrow lowers it into an **ARI manifest**, compiles that to a
+   deterministic **RuntimePlan**, and executes it through the native runtime —
+   with pluggable providers, a policy-gated tool-use loop, budgets, policy
+   enforcement, rollback, and a portable **ExecutionTrace**.
 
 **Why this exists.** The mature Python frameworks (LangGraph, CrewAI, AutoGen) are
 excellent for server apps, but they're Python-locked by design — which rules them
@@ -47,6 +59,14 @@ ARI   — the runtime that runs a turn   ◀── marrow implements this
 Model provider (OpenAI / Anthropic / local)
 ```
 
+And the compiler lowers an authored agent graph onto that runtime — a portable,
+content-addressed pipeline:
+
+```
+AgentGraph  →  ARI manifest  →  RuntimePlan  →  native runtime  →  ExecutionTrace
+ (Python/TS)      (JSON)          (JSON)          (C++)               (JSON)
+```
+
 See **[ARI-SPEC.md](ARI-SPEC.md)** for the contract and **[docs/ari-strategy.md](docs/ari-strategy.md)** for how the standard is meant to grow.
 
 > **Project status: 0.1.0, public API frozen per [`STABILITY.md`](STABILITY.md).** The C++ core is buildable, tested, and works on Linux / macOS / Windows × Python 3.9–3.12. Production primitives — timeouts, cancellation, bounded inboxes, persistence, tracing, usage tracking — all shipped. Real-world soak testing and bus-factor-of-2 are the remaining items before this should be your default choice for a live system. See [`ROADMAP.md`](ROADMAP.md).
@@ -56,6 +76,16 @@ See **[ARI-SPEC.md](ARI-SPEC.md)** for the contract and **[docs/ari-strategy.md]
 ---
 
 ## Highlights
+
+**Compiler (early, feature-complete):**
+
+- **AI-aware compiler** — author an `AgentGraph`, compile to an ARI manifest → deterministic `RuntimePlan` → execute → portable `ExecutionTrace`. Content-addressed ids make the whole chain reproducible and replayable.
+- **Governance, enforced** — policy checkpoints (`allow` / `deny` / `require_approval`, with an approver and evidence), budgets (steps / tokens / cost / wall-clock), rollback on failure, and deterministic replay — all recorded in the trace.
+- **Policy-gated tool use** — agents request tools, the call is gated by `tool:` policy and restricted to the agent's declared tools, invoked through the C++ registry, and the result is fed back.
+- **Pluggable providers** — `mock` (keyless default), `openai` / `anthropic` / `ollama` built in, or bring-your-own via a factory.
+- **Multi-language frontends** — a Python frontend and a [TypeScript frontend](ts/) that emits **byte-identical** ARI (verified by a cross-language parity test).
+
+**Runtime (ARI reference implementation):**
 
 - **Native C++ core** — Message history, LRU cache, agent router, tool registry, `CancelToken`. C++17, `std::shared_mutex` for read-heavy access, no third-party C++ deps beyond Pybind11.
 - **Ergonomic Python** — `Agent` + `Runtime` dataclass API. Two lines from import to your first generated message.
@@ -359,6 +389,30 @@ What is **not** done and should not yet be relied on:
 - ABI stability across versions (source-level stability only, per `STABILITY.md`)
 - An **ARI conformance kit** — the executable proof of conformance (see
   [`docs/ari-strategy.md`](docs/ari-strategy.md))
+
+### Compiler (experimental)
+
+An additive **compiler layer** turns a declaratively-defined agent graph into a
+portable, executable plan:
+
+```
+AgentGraph  →  ARI manifest (JSON)  →  RuntimePlan (JSON)  →  native runtime  →  ExecutionTrace (JSON)
+```
+
+It compiles agent graphs (not arbitrary Python) without changing the runtime or
+the normative [ARI spec](ARI-SPEC.md). The pipeline is feature-complete: real,
+pluggable providers (mock default; OpenAI/Anthropic/Ollama built in; bring your
+own); a policy-gated **tool-use loop**; governance — **policy** enforcement,
+**budgets** (steps/tokens/cost/wall-clock), evidence, **rollback**, deterministic
+**replay**, deployment manifests; native C++ JSON; and a **TypeScript frontend**
+([`ts/`](ts/)) that emits identical ARI. Authoring in Python uses a mock provider
+with no API key.
+
+See [`docs/compiler_architecture.md`](docs/compiler_architecture.md),
+[`docs/marrow_compiler_positioning.md`](docs/marrow_compiler_positioning.md), and
+the runnable [`examples/python_to_ari_compile/`](examples/python_to_ari_compile/)
++ [`examples/governance_example.py`](examples/governance_example.py). It is
+feature-complete but **early/pre-production** — see the docs for the honest boundary.
 
 ### Roadmap
 

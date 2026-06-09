@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARI FailureSemantics",
+  "description": "Draft, non-normative ARI manifest describing how the runtime reacts to failures.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["on_tool_error", "on_provider_error", "on_timeout"],
+  "properties": {
+    "on_tool_error": {"type": "string", "enum": ["abort", "record_and_continue"]},
+    "on_provider_error": {"type": "string", "enum": ["abort", "record_and_continue"]},
+    "on_timeout": {"type": "string", "enum": ["abort", "record_and_continue"]},
+    "on_cancel": {"type": "string", "enum": ["abort", "record_and_continue"]}
+  }
+}

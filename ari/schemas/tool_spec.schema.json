@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARI ToolSpec",
+  "description": "Draft, non-normative ARI manifest for a tool contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description", "input_schema", "output_schema", "side_effects", "timeout_ms", "requires_approval"],
+  "properties": {
+    "name": {"type": "string"},
+    "description": {"type": "string"},
+    "input_schema": {"type": "object"},
+    "output_schema": {"type": "object"},
+    "side_effects": {"type": "boolean"},
+    "timeout_ms": {"type": "integer"},
+    "requires_approval": {"type": "boolean"},
+    "tags": {"type": "array", "items": {"type": "string"}}
+  }
+}

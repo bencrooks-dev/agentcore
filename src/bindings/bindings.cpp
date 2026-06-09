@@ -8,6 +8,8 @@
 // destructs (both happen with the GIL held).
 
 #include "engine.hpp"
+#include "execution_trace.h"
+#include "runtime_plan.h"
 
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
@@ -219,4 +221,199 @@ PYBIND11_MODULE(_marrow, m) {
                                py::return_value_policy::reference_internal)
         .def_property_readonly("tools",  &Engine::tools,
                                py::return_value_policy::reference_internal);
+
+    // ----- Compiler: native RuntimePlan + ExecutionTrace -----
+    //
+    // These hold the output of the (Python) Marrow compiler so the native
+    // runtime can represent and inspect a plan, and record a trace. The core
+    // links no JSON parser; the Python side constructs these across the binding
+    // boundary (marrow.compiler.load_runtime_plan). Registered dependency-first
+    // so member types resolve.
+
+    py::class_<RuntimeNode>(m, "RuntimeNode")
+        .def(py::init([](std::string id, std::string name, std::string provider,
+                         std::string system_prompt, std::vector<std::string> tools) {
+                 return RuntimeNode{std::move(id), std::move(name), std::move(provider),
+                                    std::move(system_prompt), std::move(tools)};
+             }),
+             py::arg("id"), py::arg("name"), py::arg("provider"),
+             py::arg("system_prompt") = "",
+             py::arg("tools") = std::vector<std::string>{})
+        .def_readwrite("id",            &RuntimeNode::id)
+        .def_readwrite("name",          &RuntimeNode::name)
+        .def_readwrite("provider",      &RuntimeNode::provider)
+        .def_readwrite("system_prompt", &RuntimeNode::system_prompt)
+        .def_readwrite("tools",         &RuntimeNode::tools);
+
+    py::class_<RuntimeEdge>(m, "RuntimeEdge")
+        .def(py::init([](std::string from, std::string to,
+                         std::string condition_type, std::string condition_value) {
+                 return RuntimeEdge{std::move(from), std::move(to),
+                                    std::move(condition_type), std::move(condition_value)};
+             }),
+             py::arg("from"), py::arg("to"),
+             py::arg("condition_type") = "always", py::arg("condition_value") = "")
+        .def_readwrite("from_",           &RuntimeEdge::from)
+        .def_readwrite("to",              &RuntimeEdge::to)
+        .def_readwrite("condition_type",  &RuntimeEdge::condition_type)
+        .def_readwrite("condition_value", &RuntimeEdge::condition_value);
+
+    py::class_<ToolBinding>(m, "ToolBinding")
+        .def(py::init([](std::string name, int timeout_ms, bool side_effects,
+                         bool requires_approval, std::string input_schema_json,
+                         std::string output_schema_json) {
+                 return ToolBinding{std::move(name), timeout_ms, side_effects,
+                                    requires_approval, std::move(input_schema_json),
+                                    std::move(output_schema_json)};
+             }),
+             py::arg("name"), py::arg("timeout_ms") = 0,
+             py::arg("side_effects") = false, py::arg("requires_approval") = false,
+             py::arg("input_schema_json") = "{}", py::arg("output_schema_json") = "{}")
+        .def_readwrite("name",               &ToolBinding::name)
+        .def_readwrite("timeout_ms",         &ToolBinding::timeout_ms)
+        .def_readwrite("side_effects",       &ToolBinding::side_effects)
+        .def_readwrite("requires_approval",  &ToolBinding::requires_approval)
+        .def_readwrite("input_schema_json",  &ToolBinding::input_schema_json)
+        .def_readwrite("output_schema_json", &ToolBinding::output_schema_json);
+
+    py::class_<ProviderBinding>(m, "ProviderBinding")
+        .def(py::init([](std::string id, std::string type, std::string model,
+                         std::optional<std::string> config_ref) {
+                 return ProviderBinding{std::move(id), std::move(type),
+                                        std::move(model), std::move(config_ref)};
+             }),
+             py::arg("id"), py::arg("type"), py::arg("model"),
+             py::arg("config_ref") = std::nullopt)
+        .def_readwrite("id",         &ProviderBinding::id)
+        .def_readwrite("type",       &ProviderBinding::type)
+        .def_readwrite("model",      &ProviderBinding::model)
+        .def_readwrite("config_ref", &ProviderBinding::config_ref);
+
+    py::class_<RuntimePlan>(m, "RuntimePlan")
+        .def(py::init<>())
+        .def_static("from_json", &RuntimePlan::from_json, py::arg("text"))
+        .def("set_meta", &RuntimePlan::set_meta,
+             py::arg("version"), py::arg("runtime_plan_id"), py::arg("graph_id"),
+             py::arg("name"), py::arg("entrypoint"))
+        .def("add_node",             &RuntimePlan::add_node)
+        .def("add_edge",             &RuntimePlan::add_edge)
+        .def("add_tool_binding",     &RuntimePlan::add_tool_binding)
+        .def("add_provider_binding", &RuntimePlan::add_provider_binding)
+        .def_property_readonly("version",         &RuntimePlan::version)
+        .def_property_readonly("runtime_plan_id", &RuntimePlan::runtime_plan_id)
+        .def_property_readonly("graph_id",        &RuntimePlan::graph_id)
+        .def_property_readonly("name",            &RuntimePlan::name)
+        .def_property_readonly("entrypoint",      &RuntimePlan::entrypoint)
+        .def("node_count", &RuntimePlan::node_count)
+        .def("edge_count", &RuntimePlan::edge_count)
+        .def("nodes",      &RuntimePlan::nodes)
+        .def("edges",      &RuntimePlan::edges)
+        .def("has_node",   &RuntimePlan::has_node)
+        .def("node",       &RuntimePlan::node)
+        .def("has_provider", &RuntimePlan::has_provider)
+        .def("provider",   &RuntimePlan::provider)
+        .def("has_tool",   &RuntimePlan::has_tool)
+        .def("tool",       &RuntimePlan::tool)
+        .def("node_ids",     &RuntimePlan::node_ids)
+        .def("provider_ids", &RuntimePlan::provider_ids)
+        .def("tool_names",   &RuntimePlan::tool_names);
+
+    py::class_<TraceEvent>(m, "TraceEvent")
+        .def_readwrite("type",       &TraceEvent::type)
+        .def_readwrite("attributes", &TraceEvent::attributes);
+
+    py::class_<ToolCall>(m, "ToolCall")
+        .def(py::init([](std::string agent, std::string tool, std::string args_json,
+                         std::string result_json, bool ok) {
+                 return ToolCall{std::move(agent), std::move(tool), std::move(args_json),
+                                 std::move(result_json), ok};
+             }),
+             py::arg("agent"), py::arg("tool"), py::arg("args_json") = "",
+             py::arg("result_json") = "", py::arg("ok") = true)
+        .def_readwrite("agent",       &ToolCall::agent)
+        .def_readwrite("tool",        &ToolCall::tool)
+        .def_readwrite("args_json",   &ToolCall::args_json)
+        .def_readwrite("result_json", &ToolCall::result_json)
+        .def_readwrite("ok",          &ToolCall::ok);
+
+    py::class_<ProviderCall>(m, "ProviderCall")
+        .def(py::init([](std::string agent, std::string provider, std::string model,
+                         int prompt_tokens, int completion_tokens) {
+                 return ProviderCall{std::move(agent), std::move(provider),
+                                     std::move(model), prompt_tokens, completion_tokens};
+             }),
+             py::arg("agent"), py::arg("provider"), py::arg("model"),
+             py::arg("prompt_tokens") = 0, py::arg("completion_tokens") = 0)
+        .def_readwrite("agent",             &ProviderCall::agent)
+        .def_readwrite("provider",          &ProviderCall::provider)
+        .def_readwrite("model",             &ProviderCall::model)
+        .def_readwrite("prompt_tokens",     &ProviderCall::prompt_tokens)
+        .def_readwrite("completion_tokens", &ProviderCall::completion_tokens);
+
+    py::class_<TraceError>(m, "TraceError")
+        .def(py::init([](std::string agent, std::string kind, std::string message) {
+                 return TraceError{std::move(agent), std::move(kind), std::move(message)};
+             }),
+             py::arg("agent") = "", py::arg("kind") = "", py::arg("message") = "")
+        .def_readwrite("agent",   &TraceError::agent)
+        .def_readwrite("kind",    &TraceError::kind)
+        .def_readwrite("message", &TraceError::message);
+
+    py::class_<PolicyDecision>(m, "PolicyDecision")
+        .def(py::init([](std::string action, std::string decision, bool allowed,
+                         bool approval_required, bool evidence_required) {
+                 return PolicyDecision{std::move(action), std::move(decision), allowed,
+                                       approval_required, evidence_required};
+             }),
+             py::arg("action"), py::arg("decision"), py::arg("allowed") = true,
+             py::arg("approval_required") = false, py::arg("evidence_required") = false)
+        .def_readwrite("action",            &PolicyDecision::action)
+        .def_readwrite("decision",          &PolicyDecision::decision)
+        .def_readwrite("allowed",           &PolicyDecision::allowed)
+        .def_readwrite("approval_required", &PolicyDecision::approval_required)
+        .def_readwrite("evidence_required", &PolicyDecision::evidence_required);
+
+    py::class_<BudgetUsage>(m, "BudgetUsage")
+        .def(py::init([](int steps, int prompt_tokens, int completion_tokens,
+                         double cost_usd) {
+                 return BudgetUsage{steps, prompt_tokens, completion_tokens, cost_usd};
+             }),
+             py::arg("steps") = 0, py::arg("prompt_tokens") = 0,
+             py::arg("completion_tokens") = 0, py::arg("cost_usd") = 0.0)
+        .def_readwrite("steps",             &BudgetUsage::steps)
+        .def_readwrite("prompt_tokens",     &BudgetUsage::prompt_tokens)
+        .def_readwrite("completion_tokens", &BudgetUsage::completion_tokens)
+        .def_readwrite("cost_usd",          &BudgetUsage::cost_usd);
+
+    py::class_<ExecutionTrace>(m, "ExecutionTrace")
+        .def(py::init<>())
+        .def(py::init<std::string, std::string>(),
+             py::arg("trace_id"), py::arg("runtime_plan_id"))
+        .def("set_input",        &ExecutionTrace::set_input)
+        .def("set_started_at",   &ExecutionTrace::set_started_at)
+        .def("set_completed_at", &ExecutionTrace::set_completed_at)
+        .def("set_final_status", &ExecutionTrace::set_final_status)
+        .def("add_event", &ExecutionTrace::add_event, py::arg("type"),
+             py::arg("attributes") = std::vector<std::pair<std::string, std::string>>{})
+        .def("add_tool_call",      &ExecutionTrace::add_tool_call)
+        .def("add_provider_call",  &ExecutionTrace::add_provider_call)
+        .def("add_error",          &ExecutionTrace::add_error)
+        .def("add_policy_decision", &ExecutionTrace::add_policy_decision)
+        .def("set_budget_usage",   &ExecutionTrace::set_budget_usage)
+        .def_property_readonly("trace_id",        &ExecutionTrace::trace_id)
+        .def_property_readonly("runtime_plan_id", &ExecutionTrace::runtime_plan_id)
+        .def_property_readonly("has_input",       &ExecutionTrace::has_input)
+        .def_property_readonly("input",           &ExecutionTrace::input)
+        .def_property_readonly("started_at",      &ExecutionTrace::started_at)
+        .def_property_readonly("completed_at",    &ExecutionTrace::completed_at)
+        .def_property_readonly("final_status",    &ExecutionTrace::final_status)
+        .def("events",            &ExecutionTrace::events)
+        .def("tool_calls",        &ExecutionTrace::tool_calls)
+        .def("provider_calls",    &ExecutionTrace::provider_calls)
+        .def("errors",            &ExecutionTrace::errors)
+        .def("policy_decisions",  &ExecutionTrace::policy_decisions)
+        .def_property_readonly("has_budget_usage", &ExecutionTrace::has_budget_usage)
+        .def("budget_usage",      &ExecutionTrace::budget_usage,
+             py::return_value_policy::copy)
+        .def("to_json",           &ExecutionTrace::to_json);
 }

@@ -1,0 +1,57 @@
+{
+  "version": "ari/v0.draft",
+  "name": "echo_agent",
+  "providers": [
+    {
+      "id": "mock",
+      "type": "mock",
+      "model": "mock-echo",
+      "config_ref": null
+    }
+  ],
+  "tools": [
+    {
+      "name": "echo",
+      "description": "Echo input text",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "side_effects": false,
+      "timeout_ms": 1000,
+      "requires_approval": false
+    }
+  ],
+  "agents": [
+    {
+      "id": "agent_1",
+      "name": "Echo Agent",
+      "provider": "mock",
+      "system_prompt": "You are a test echo agent.",
+      "tools": [
+        "echo"
+      ],
+      "state": {}
+    }
+  ],
+  "edges": [],
+  "entrypoint": "agent_1"
+}

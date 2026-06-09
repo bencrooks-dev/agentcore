@@ -1,0 +1,69 @@
+{
+  "version": "runtime_plan/v0.draft",
+  "graph_id": "g_2f9642c30328f2ae",
+  "name": "echo_agent",
+  "entrypoint": "agent_1",
+  "nodes": [
+    {
+      "id": "agent_1",
+      "name": "Echo Agent",
+      "provider": "mock",
+      "system_prompt": "You are a test echo agent.",
+      "tools": [
+        "echo"
+      ]
+    }
+  ],
+  "edges": [],
+  "tool_bindings": {
+    "echo": {
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "side_effects": false,
+      "timeout_ms": 1000,
+      "requires_approval": false
+    }
+  },
+  "provider_bindings": {
+    "mock": {
+      "type": "mock",
+      "model": "mock-echo",
+      "config_ref": null
+    }
+  },
+  "policy_checkpoints": [],
+  "timeout_plan": {
+    "default_timeout_ms": 0
+  },
+  "retry_plan": {
+    "default": {
+      "attempts": 1
+    }
+  },
+  "evidence_plan": {
+    "record_tool_calls": true,
+    "record_provider_calls": true,
+    "record_policy_decisions": true
+  },
+  "runtime_plan_id": "rp_9af0b48469d37152"
+}

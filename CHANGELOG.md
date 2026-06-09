@@ -4,6 +4,67 @@ All notable changes to `marrow` are documented here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — compiler completion (real providers, tools, native JSON, TS)
+
+- **Pluggable providers** — the executor builds providers by type: `mock`/`echo`
+  (keyless default), `openai`/`anthropic`/`ollama` (built-in), or a caller-supplied
+  factory (`run_runtime_plan(..., providers={type: factory})`) for bring-your-own
+  models.
+- **Tool-use loop** — agents request tools (a portable `{"tool_call": …}`
+  convention); each call is policy-gated (`tool:<name>`), invoked through the C++
+  `ToolRegistry`, recorded, and its result fed back. Supply implementations via
+  `run_runtime_plan(..., tools={name: callable})`.
+- **Full failure semantics** — `on_provider_error` / `on_tool_error` honor
+  `abort` vs `record_and_continue` (tested with failing providers/tools).
+- **Native C++ JSON** — a dependency-free parser (`src/json.hpp`):
+  `RuntimePlan.from_json` parses plans, `ExecutionTrace.to_json` serializes traces.
+  The plan is now loaded by parsing JSON in C++, not marshalled field-by-field.
+- **Wall-clock budgets** — `BudgetSpec(max_wall_ms=…)` bounds total run time
+  (pre-emptive, alongside `max_steps`).
+- **TypeScript frontend** — [`ts/`](ts/) emits ARI manifests identical to the
+  Python frontend (parity test on `graph_id` + the manifest). CI builds and tests it.
+
+### Added — compiler governance (experimental)
+
+- **Policy enforcement** — `PolicySpec` checkpoints (allow / deny /
+  require-approval, with an optional approver and evidence) are enforced by the
+  executor's `PolicyEngine`; a denied action halts the run and rolls back. Each
+  decision is recorded in the native `ExecutionTrace.policy_decisions`.
+- **Budgets** — `BudgetSpec` (max steps / tokens / cost) is metered each turn by
+  `BudgetMeter`; a breach halts with `final_status` `"exhausted"` / `"over_budget"`,
+  and consumption is recorded in `ExecutionTrace.budget_usage`.
+- **Rollback** — `RollbackPlan` compensating steps (e.g. `clear_state`) run on any
+  abnormal termination.
+- **Replay** — `replay()` / `traces_equivalent()` re-execute a plan deterministically.
+- **Deployment manifests** — `make_deployment_manifest()` produces a validated
+  `DeploymentManifest` from a RuntimePlan.
+- New draft schemas `budget_spec`, `failure_semantics`, `rollback_plan`; the
+  executor now drives execution from the loaded native `RuntimePlan`. New
+  `examples/governance_example.py`. All additive; existing APIs and tests
+  unchanged.
+
+### Added — early compiler layer (experimental)
+
+- **`marrow.compiler`** — a Python frontend (`AgentGraph` / `AgentNode` /
+  `ToolSpec` / `ProviderSpec`) that compiles a declaratively-defined agent graph
+  to an **ARI manifest**, lowers it to a **RuntimePlan** with deterministic ids,
+  executes it through the existing native runtime, and emits an **ExecutionTrace**.
+  Mock provider only; no API key. Additive — existing runtime APIs and tests are
+  unchanged.
+- **`ari/schemas/`** — draft, non-normative JSON Schemas for the manifest layer
+  (`agent_graph`, `tool_spec`, `provider_spec`, `policy_spec`, `runtime_plan`,
+  `execution_trace`, `deployment_manifest`) with a stdlib validator. These are
+  **not** part of normative ARI 0.1 (see `ari/spec/README.md`).
+- **`src/runtime_plan.{h,cpp}`, `src/execution_trace.{h,cpp}`** — native types
+  that hold and inspect a RuntimePlan and record an ExecutionTrace, bound to
+  Python. The core still links no JSON parser; plans are constructed across the
+  binding boundary.
+- **`examples/python_to_ari_compile/`** — runnable end-to-end example
+  (Python graph → ARI → RuntimePlan → execute → trace) with golden fixtures.
+- **`docs/compiler_audit.md`, `docs/compiler_architecture.md`,
+  `docs/marrow_compiler_positioning.md`, `docs/language_roadmap.md`** — design,
+  positioning (no overclaiming), and the frontends-emit-ARI language roadmap.
+
 ## [0.1.0rc1] — 2026-05-28
 
 First release candidate published to PyPI (as `marrow-rt`). Bundles the

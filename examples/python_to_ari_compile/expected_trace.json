@@ -1,0 +1,42 @@
+{
+  "trace_id": "tr_135ffdd27fca4252",
+  "runtime_plan_id": "rp_9af0b48469d37152",
+  "input": "Hello, Marrow.",
+  "started_at": null,
+  "completed_at": null,
+  "events": [
+    {
+      "type": "agent_started",
+      "agent": "agent_1"
+    },
+    {
+      "type": "provider_called",
+      "agent": "agent_1",
+      "provider": "mock"
+    },
+    {
+      "type": "agent_completed",
+      "agent": "agent_1"
+    }
+  ],
+  "tool_calls": [],
+  "provider_calls": [
+    {
+      "agent": "agent_1",
+      "provider": "mock",
+      "model": "mock-echo",
+      "prompt_tokens": 3,
+      "completion_tokens": 6
+    }
+  ],
+  "policy_decisions": [],
+  "errors": [],
+  "final_status": "completed",
+  "budget_usage": {
+    "steps": 1,
+    "prompt_tokens": 3,
+    "completion_tokens": 6,
+    "total_tokens": 9,
+    "cost_usd": 0.0
+  }
+}

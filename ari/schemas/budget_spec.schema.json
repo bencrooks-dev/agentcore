@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARI BudgetSpec",
+  "description": "Draft, non-normative ARI manifest for an execution budget. Null limits mean unlimited.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "max_tokens", "max_cost_usd", "max_steps"],
+  "properties": {
+    "id": {"type": "string"},
+    "max_tokens": {"type": ["integer", "null"]},
+    "max_cost_usd": {"type": ["number", "null"]},
+    "max_steps": {"type": "integer"},
+    "max_wall_ms": {"type": ["integer", "null"]},
+    "currency": {"type": "string"}
+  }
+}

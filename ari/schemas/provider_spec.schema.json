@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARI ProviderSpec",
+  "description": "Draft, non-normative ARI manifest binding a logical provider id to a concrete provider type/model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "model", "config_ref"],
+  "properties": {
+    "id": {"type": "string"},
+    "type": {"type": "string"},
+    "model": {"type": "string"},
+    "config_ref": {"type": ["string", "null"]}
+  }
+}

@@ -1,5 +1,5 @@
 site_name: marrow
-site_description: Lightweight C++ core for AI agent orchestration
+site_description: The native runtime and compiler that runs an agent — reference implementation of ARI, below MCP and A2A.
 site_url: https://bencrooks-dev.github.io/marrow/
 repo_url: https://github.com/bencrooks-dev/marrow
 repo_name: bencrooks-dev/marrow
@@ -12,15 +12,25 @@ edit_uri: edit/main/docs/
 exclude_docs: |
   pdf/
   pitch/
+  plans/
   market-research.md
   ari-strategy.md
   ari-rfc-process.md
+  compiler_audit.md
+  compiler_architecture.md
+  marrow_compiler_positioning.md
+  language_roadmap.md
 
 theme:
   name: material
+  logo: assets/marrow-icon-light.png
+  favicon: assets/favicon.png
+  icon:
+    repo: fontawesome/brands/github
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - navigation.tracking
     - content.code.copy
@@ -72,6 +82,15 @@ markdown_extensions:
   - toc:
       permalink: true
   - attr_list
+  - md_in_html
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/bencrooks-dev/marrow
 
 nav:
   - Home: index.md
@@ -85,6 +104,7 @@ nav:
     - Async: concepts/async.md
     - Persistence: concepts/persistence.md
     - Observability: concepts/observability.md
+    - Compiler: concepts/compiler.md
   - Production:
     - Stability policy: stability.md
     - Security: security.md
@@ -92,6 +112,7 @@ nav:
   - API reference:
     - marrow: api/marrow.md
     - marrow.providers: api/providers.md
+    - marrow.compiler: api/compiler.md
   - Project:
     - Roadmap: roadmap.md
     - Contributing: contributing.md

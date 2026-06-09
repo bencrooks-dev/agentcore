@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARI ExecutionTrace",
+  "description": "Draft, non-normative portable record of one RuntimePlan execution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trace_id", "runtime_plan_id", "started_at", "completed_at", "events", "tool_calls", "provider_calls", "policy_decisions", "errors", "final_status"],
+  "properties": {
+    "trace_id": {"type": "string"},
+    "runtime_plan_id": {"type": "string"},
+    "input": {"type": ["string", "null"]},
+    "started_at": {"type": ["integer", "null"]},
+    "completed_at": {"type": ["integer", "null"]},
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {"type": {"type": "string"}}
+      }
+    },
+    "tool_calls": {"type": "array", "items": {"type": "object"}},
+    "provider_calls": {"type": "array", "items": {"type": "object"}},
+    "policy_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action", "decision", "allowed"],
+        "properties": {
+          "action": {"type": "string"},
+          "decision": {"type": "string"},
+          "allowed": {"type": "boolean"},
+          "approval_required": {"type": "boolean"},
+          "evidence_required": {"type": "boolean"}
+        }
+      }
+    },
+    "errors": {"type": "array", "items": {"type": "object"}},
+    "budget_usage": {
+      "type": "object",
+      "required": ["steps", "prompt_tokens", "completion_tokens", "total_tokens", "cost_usd"],
+      "properties": {
+        "steps": {"type": "integer"},
+        "prompt_tokens": {"type": "integer"},
+        "completion_tokens": {"type": "integer"},
+        "total_tokens": {"type": "integer"},
+        "cost_usd": {"type": "number"}
+      }
+    },
+    "final_status": {"type": "string", "enum": ["completed", "error", "exhausted", "denied", "over_budget"]}
+  }
+}

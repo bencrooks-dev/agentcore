@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ARI RollbackPlan",
+  "description": "Draft, non-normative ARI manifest of compensating steps to run when a run fails partway.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "steps"],
+  "properties": {
+    "id": {"type": "string"},
+    "description": {"type": "string"},
+    "steps": {"type": "array", "items": {"$ref": "#/$defs/step"}}
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["on", "action"],
+      "properties": {
+        "on": {"type": "string"},
+        "action": {"type": "string", "enum": ["clear_state"]}
+      }
+    }
+  }
+}

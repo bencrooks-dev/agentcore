@@ -17,12 +17,15 @@ endif()
 
 find_package(pybind11 CONFIG REQUIRED)
 
-add_library(marrow_core STATIC src/core/engine.cpp)
-target_include_directories(marrow_core PUBLIC src/core)
+add_library(marrow_core STATIC
+    src/core/engine.cpp
+    src/runtime_plan.cpp
+    src/execution_trace.cpp)
+target_include_directories(marrow_core PUBLIC src/core src)
 set_target_properties(marrow_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 pybind11_add_module(_marrow src/bindings/bindings.cpp)
 target_link_libraries(_marrow PRIVATE marrow_core)
-target_include_directories(_marrow PRIVATE src/core)
+target_include_directories(_marrow PRIVATE src/core src)
 
 install(TARGETS _marrow LIBRARY DESTINATION marrow)
