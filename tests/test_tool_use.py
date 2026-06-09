@@ -151,3 +151,28 @@ def test_failing_tool_aborts_when_configured():
         g, "go", tools={"echo": boom}, **_with(_ScriptedProvider("echo", {"text": "x"}, "z"))
     )["trace"]
     assert trace["final_status"] == "error"
+
+
+class _RaisingProvider(PyProviderBase):
+    """A provider whose generate always raises (simulates a real provider down)."""
+
+    def name(self) -> str:
+        return "boom"
+
+    def generate(self, req):  # noqa: ARG002
+        raise RuntimeError("provider down")
+
+
+def test_provider_error_aborts_by_default():
+    trace = compile_and_run(_graph(), "go", tools={}, **_with(_RaisingProvider()))["trace"]
+    assert trace["final_status"] == "error"
+    assert any(e["kind"] == "RuntimeError" for e in trace["errors"])
+    assert "provider_error" in [e["type"] for e in trace["events"]]
+
+
+def test_provider_error_record_and_continue():
+    g = _graph(failure=FailureSemantics(on_provider_error="record_and_continue"))
+    trace = compile_and_run(g, "go", tools={}, **_with(_RaisingProvider()))["trace"]
+    # The run continues past the provider failure rather than aborting.
+    assert trace["final_status"] == "completed"
+    assert any(e["kind"] == "RuntimeError" for e in trace["errors"])

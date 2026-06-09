@@ -286,6 +286,7 @@ def run_runtime_plan(
     rollback_plan = plan.get("rollback_plan", {"steps": []})
     failure_semantics = plan.get("failure_semantics", {})
     on_tool_error = failure_semantics.get("on_tool_error", "record_and_continue")
+    on_provider_error = failure_semantics.get("on_provider_error", "abort")
 
     # Register supplied tool implementations into the C++ ToolRegistry; the
     # manifest declares the contract (schemas), the caller supplies the body.
@@ -346,7 +347,18 @@ def run_runtime_plan(
             # by policy, invoke it, record it, and feed the result back.
             turn_status = None
             for _ in range(MAX_TOOL_ITERATIONS + 1):
-                payload = agents[current].step(model=model)
+                try:
+                    payload = agents[current].step(model=model)
+                except Exception as exc:  # noqa: BLE001 — provider failure
+                    trace.add_error(
+                        _c.TraceError(current, type(exc).__name__, str(exc)[:200])
+                    )
+                    _event(trace, "provider_error", agent=current, kind=type(exc).__name__)
+                    if on_provider_error == "abort":
+                        turn_status = "error"
+                    else:  # record_and_continue: the node yields no output
+                        payload = ""
+                    break
                 resp = provider_instances[node.provider].last
                 prompt_tokens = int(getattr(resp, "prompt_tokens", 0) or 0)
                 completion_tokens = int(getattr(resp, "completion_tokens", 0) or 0)
