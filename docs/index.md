@@ -8,22 +8,18 @@ hide:
 
 # Marrow
 
+<img class="mw-hero-logo mw-logo-dark" src="assets/marrow-logo.png" alt="Marrow" />
+<img class="mw-hero-logo mw-logo-light" src="assets/marrow-logo-light.png" alt="Marrow" />
+
+<p class="mw-eyebrow">Agent Runtime Interface · reference implementation</p>
+
 <p class="mw-tagline">The native runtime — and compiler — that runs an agent, below MCP and A2A.</p>
 
-<p class="mw-sub">Marrow is the reference implementation of <strong>ARI</strong>, the Agent Runtime Interface. Author an agent graph in Python or TypeScript; Marrow compiles it into a portable, governed plan and runs it on a thread-safe C++ core.</p>
-
-<div class="mw-badges">
-  <span class="mw-badge mw-badge--accent">ARI reference implementation</span>
-  <span class="mw-badge">C++17 core</span>
-  <span class="mw-badge">Python + TypeScript</span>
-  <span class="mw-badge">Apache-2.0</span>
-  <span class="mw-badge">early / draft</span>
-</div>
+<p class="mw-sub">Author an agent graph in Python or TypeScript. Marrow compiles it into a portable, governed plan and runs it on a thread-safe C++ core.</p>
 
 <div class="mw-cta" markdown>
 [Get started](getting-started.md){ .md-button .md-button--primary }
 [The compiler](concepts/compiler.md){ .md-button }
-[ARI spec](https://github.com/bencrooks-dev/marrow/blob/main/ARI-SPEC.md){ .md-button }
 [GitHub](https://github.com/bencrooks-dev/marrow){ .md-button }
 </div>
 

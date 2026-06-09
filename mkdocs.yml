@@ -1,5 +1,5 @@
 site_name: marrow
-site_description: Lightweight C++ core for AI agent orchestration
+site_description: The native runtime and compiler that runs an agent — reference implementation of ARI, below MCP and A2A.
 site_url: https://bencrooks-dev.github.io/marrow/
 repo_url: https://github.com/bencrooks-dev/marrow
 repo_name: bencrooks-dev/marrow
@@ -23,8 +23,8 @@ exclude_docs: |
 
 theme:
   name: material
-  logo: assets/logo.svg
-  favicon: assets/logo.svg
+  logo: assets/marrow-icon-light.png
+  favicon: assets/favicon.png
   icon:
     repo: fontawesome/brands/github
   features:

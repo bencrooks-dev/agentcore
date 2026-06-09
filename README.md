@@ -1,6 +1,11 @@
 <div align="center">
 
-# marrow
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/marrow-logo-light.png">
+  <img alt="Marrow" src="docs/assets/marrow-logo.png" width="400">
+</picture>
+
+<br/><br/>
 
 **The native runtime — and compiler — that runs an agent, below MCP and A2A.**
 

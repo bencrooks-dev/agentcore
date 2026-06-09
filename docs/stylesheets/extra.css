@@ -1,66 +1,88 @@
-/* Marrow landing-page styles. Uses Material's CSS variables so light + dark
-   themes both work. */
+/* Marrow brand + landing styles. Brand colors sampled from the logo:
+   cobalt #1657f0 and navy #212830. Works in light + dark schemes. */
 
 :root {
-  --mw-accent: #7c3aed;
-  --mw-accent-2: #4f46e5;
+  --mw-blue: #1657f0;
+  --mw-blue-ink: #0c3fc4;
+  --mw-navy: #212830;
+
+  /* Re-brand the Material header + accent to match the logo. */
+  --md-primary-fg-color: #212830;
+  --md-primary-fg-color--light: #2c333d;
+  --md-primary-fg-color--dark: #181d24;
+  --md-accent-fg-color: var(--mw-blue);
+}
+
+[data-md-color-scheme="slate"] {
+  --mw-blue: #4f86ff;
+  --md-accent-fg-color: #4f86ff;
+}
+
+/* Brand the header + tab bar navy (overrides the theme's primary color). */
+.md-header,
+.md-tabs {
+  background-color: var(--mw-navy);
+  color: #fff;
+}
+.md-header[data-md-state="shadow"] { box-shadow: 0 0 0.2rem rgba(0,0,0,.1), 0 0.2rem 0.4rem rgba(0,0,0,.2); }
+
+/* Links + primary CTA in brand blue. */
+.md-typeset a { color: var(--mw-blue); }
+.md-typeset .md-button--primary {
+  background-color: var(--mw-blue);
+  border-color: var(--mw-blue);
+  color: #fff;
+}
+.md-typeset .md-button--primary:hover {
+  background-color: var(--mw-blue-ink);
+  border-color: var(--mw-blue-ink);
 }
 
 /* ---- Hero ---------------------------------------------------------------- */
 
 .mw-hero {
-  margin: -1.2rem -0.8rem 2.5rem;
-  padding: 4rem 1.2rem 3.2rem;
+  margin: -1.2rem -0.8rem 2.6rem;
+  padding: 4.5rem 1.2rem 3.4rem;
   text-align: center;
-  background:
-    radial-gradient(1100px 420px at 50% -12%, rgba(124, 58, 237, 0.20), transparent 62%),
-    radial-gradient(900px 360px at 80% 0%, rgba(79, 70, 229, 0.14), transparent 60%);
+  background: linear-gradient(180deg, rgba(22, 87, 240, 0.06), transparent 72%);
   border-bottom: 1px solid var(--md-default-fg-color--lightest);
 }
 
+/* The logo lockup is the visual title; keep a real (hidden) h1 for SEO/a11y. */
 .mw-hero h1 {
-  font-size: 3rem;
-  line-height: 1.08;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  margin: 0 0 0.5rem;
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;
 }
 
-.mw-hero .mw-tagline {
-  font-size: 1.35rem;
-  font-weight: 600;
-  max-width: 44rem;
-  margin: 0 auto 1rem;
-}
-
-.mw-hero .mw-sub {
-  font-size: 1.02rem;
-  color: var(--md-default-fg-color--light);
-  max-width: 42rem;
-  margin: 0 auto 1.5rem;
-}
-
-.mw-badges {
-  display: flex;
-  gap: 0.45rem;
-  justify-content: center;
-  flex-wrap: wrap;
+.md-typeset .mw-hero-logo {
+  height: 100px;
+  width: auto;
+  max-width: 90%;
   margin: 0 auto 1.7rem;
 }
 
-.mw-badge {
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 0.22rem 0.65rem;
-  border-radius: 1rem;
-  background: var(--md-default-fg-color--lightest);
-  color: var(--md-default-fg-color--light);
-  white-space: nowrap;
+/* Theme-aware logo swap (dark logo on light bg, white logo on dark bg).
+   Specificity must match .md-typeset .mw-hero-logo, so qualify with .md-typeset. */
+.md-typeset .mw-logo-dark { display: block; }
+.md-typeset .mw-logo-light { display: none; }
+[data-md-color-scheme="slate"] .md-typeset .mw-logo-dark { display: none; }
+[data-md-color-scheme="slate"] .md-typeset .mw-logo-light { display: block; }
+
+.mw-hero .mw-tagline {
+  font-size: 1.55rem;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  max-width: 42rem;
+  margin: 0 auto 0.85rem;
 }
 
-.mw-badge--accent {
-  background: rgba(124, 58, 237, 0.16);
-  color: var(--mw-accent);
+.mw-hero .mw-sub {
+  font-size: 1.04rem;
+  line-height: 1.6;
+  color: var(--md-default-fg-color--light);
+  max-width: 40rem;
+  margin: 0 auto 1.8rem;
 }
 
 .mw-cta {
@@ -69,41 +91,47 @@
   justify-content: center;
   flex-wrap: wrap;
 }
+.mw-cta .md-button { margin: 0; font-weight: 600; }
 
-.mw-cta .md-button {
-  margin: 0;
+.mw-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--mw-blue);
+  margin: 0 0 1rem;
 }
 
 /* ---- Layered ARI stack -------------------------------------------------- */
 
 .mw-stack {
-  max-width: 30rem;
-  margin: 1.5rem auto 0;
+  max-width: 31rem;
+  margin: 1.4rem auto 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.45rem;
 }
 
 .mw-layer {
-  padding: 0.55rem 0.9rem;
-  border-radius: 0.55rem;
+  padding: 0.62rem 1rem;
+  border-radius: 0.6rem;
   border: 1px solid var(--md-default-fg-color--lightest);
   background: var(--md-default-bg-color);
-  font-size: 0.86rem;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 0.6rem;
+  font-size: 0.9rem;
 }
-
 .mw-layer b { font-weight: 700; }
 .mw-layer span { color: var(--md-default-fg-color--light); font-size: 0.78rem; }
 
 .mw-layer--ari {
-  border-color: var(--mw-accent);
-  background: rgba(124, 58, 237, 0.10);
-  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.35) inset;
+  border-color: var(--mw-blue);
+  background: linear-gradient(0deg, rgba(22, 87, 240, 0.08), rgba(22, 87, 240, 0.08));
+  box-shadow: 0 0 0 1px rgba(22, 87, 240, 0.4) inset;
 }
+.mw-layer--ari b { color: var(--mw-blue); }
 
 /* ---- Compile pipeline --------------------------------------------------- */
 
@@ -113,12 +141,11 @@
   gap: 0.5rem;
   justify-content: center;
   align-items: center;
-  margin: 1.2rem auto 0;
-  max-width: 54rem;
+  margin: 1.1rem auto 0;
+  max-width: 55rem;
 }
-
 .mw-node {
-  padding: 0.45rem 0.85rem;
+  padding: 0.46rem 0.9rem;
   border-radius: 0.55rem;
   border: 1px solid var(--md-default-fg-color--lightest);
   background: var(--md-code-bg-color);
@@ -127,37 +154,29 @@
   font-weight: 600;
   white-space: nowrap;
 }
+.mw-node--accent { border-color: var(--mw-blue); color: var(--mw-blue); }
+.mw-arrow { color: var(--mw-blue); font-weight: 800; }
 
-.mw-node--accent {
-  border-color: var(--mw-accent);
-  color: var(--mw-accent);
-}
-
-.mw-arrow {
-  color: var(--mw-accent);
-  font-weight: 800;
-}
-
-/* ---- Section helper ----------------------------------------------------- */
-
-.mw-section-title {
-  text-align: center;
-  margin-top: 3rem;
-}
+/* ---- Layout helpers ----------------------------------------------------- */
 
 .mw-center { text-align: center; }
+.mw-lead { font-size: 1.05rem; }
 
-/* Grid cards: round the corners a touch and lift on hover. */
 .md-typeset .grid.cards > ul > li {
   border-radius: 0.7rem;
-  transition: border-color 125ms, box-shadow 125ms;
+  border-color: var(--md-default-fg-color--lightest);
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 .md-typeset .grid.cards > ul > li:hover {
-  border-color: var(--mw-accent);
-  box-shadow: 0 4px 18px rgba(124, 58, 237, 0.12);
+  border-color: var(--mw-blue);
+  box-shadow: 0 6px 22px rgba(22, 87, 240, 0.14);
+  transform: translateY(-2px);
 }
 
+/* Tighten the home-page heading rhythm. */
+.md-typeset h2 { margin-top: 3rem; }
+
 @media screen and (max-width: 44.9em) {
-  .mw-hero h1 { font-size: 2.2rem; }
-  .mw-hero .mw-tagline { font-size: 1.1rem; }
+  .mw-hero-logo { height: 64px; }
+  .mw-hero .mw-tagline { font-size: 1.25rem; }
 }
