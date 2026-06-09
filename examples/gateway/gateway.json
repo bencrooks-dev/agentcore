@@ -1,0 +1,11 @@
+{
+  "name": "demo-file-gateway",
+  "upstream": ["python", "examples/gateway/demo_server.py"],
+  "allowed_tools": ["read_file", "list_dir", "delete_file"],
+  "policies": [
+    {"id": "no-deletes", "action": "tool:delete_file", "decision": "deny"},
+    {"id": "log-reads", "action": "tool:read_file", "decision": "allow", "evidence_required": true}
+  ],
+  "budget": {"max_calls": 25, "max_wall_ms": 120000},
+  "trace_path": "gateway_trace.json"
+}

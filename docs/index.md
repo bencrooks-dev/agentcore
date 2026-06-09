@@ -87,6 +87,26 @@ hide:
 
     [Providers →](concepts/providers.md)
 
+-   __MCP gateway — govern any agent__
+
+    ---
+
+    A transparent proxy in front of any MCP server: policy-gate every tool
+    call, hide what the agent may not use, bound calls and wall-clock — **zero
+    changes to your agent or server**.
+
+    [MCP gateway →](concepts/gateway.md)
+
+-   __Flight recorder__
+
+    ---
+
+    Every run leaves evidence: provider calls, tool calls, policy decisions,
+    budget burn. `marrow-trace` renders it as a self-contained report — or
+    [drop a trace in your browser](trace-viewer.html), nothing uploaded.
+
+    [Flight recorder →](concepts/flight-recorder.md)
+
 -   __Native, embeddable core__
 
     ---

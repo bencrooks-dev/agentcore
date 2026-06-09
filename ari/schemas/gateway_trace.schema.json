@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Marrow gateway trace",
+  "description": "Draft, non-normative flight-recorder record of one MCP gateway session.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "trace_id", "gateway", "upstream", "started_at", "completed_at", "final_status", "events", "tool_calls", "policy_decisions", "budget", "errors"],
+  "properties": {
+    "schema": {"type": "string"},
+    "trace_id": {"type": "string"},
+    "gateway": {"type": "string"},
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command"],
+      "properties": {
+        "command": {"type": "array", "items": {"type": "string"}},
+        "server_info": {"type": ["object", "null"]},
+        "protocol_version": {"type": ["string", "null"]}
+      }
+    },
+    "started_at": {"type": ["integer", "null"]},
+    "completed_at": {"type": ["integer", "null"]},
+    "final_status": {"enum": ["running", "completed", "upstream_exited", "error"]},
+    "tools_visible": {"type": "array", "items": {"type": "string"}},
+    "tools_hidden": {"type": "array", "items": {"type": "string"}},
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {"type": {"type": "string"}}
+      }
+    },
+    "tool_calls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tool", "ok"],
+        "properties": {
+          "tool": {"type": "string"},
+          "ok": {"type": "boolean"},
+          "arguments": {"type": "string"},
+          "result": {"type": "string"},
+          "elapsed_ms": {"type": "integer"}
+        }
+      }
+    },
+    "policy_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action", "decision", "allowed"],
+        "properties": {
+          "action": {"type": "string"},
+          "decision": {"type": "string"},
+          "allowed": {"type": "boolean"},
+          "approval_required": {"type": "boolean"},
+          "evidence_required": {"type": "boolean"}
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limits", "used"],
+      "properties": {
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_calls": {"type": ["integer", "null"]},
+            "max_wall_ms": {"type": ["integer", "null"]}
+          }
+        },
+        "used": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "calls": {"type": "integer"},
+            "denied": {"type": "integer"},
+            "elapsed_ms": {"type": "integer"}
+          }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "message"],
+        "properties": {
+          "kind": {"type": "string"},
+          "message": {"type": "string"}
+        }
+      }
+    }
+  }
+}

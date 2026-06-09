@@ -87,6 +87,18 @@ def test_cli_rejects_invalid_json(tmp_path):
     assert "not valid JSON" in proc.stderr
 
 
+def test_hosted_viewer_page_is_in_sync():
+    # docs/trace-viewer.html is generated; regenerating must produce the same
+    # bytes, or the committed page has drifted from the template.
+    from pathlib import Path
+
+    hosted = Path(__file__).parents[1] / "docs" / "trace-viewer.html"
+    assert hosted.read_text(encoding="utf-8") == render_html(None), (
+        "docs/trace-viewer.html is stale — regenerate with: "
+        "python -m marrow.traceview --standalone -o docs/trace-viewer.html"
+    )
+
+
 def test_cli_standalone_to_stdout():
     proc = subprocess.run(
         [sys.executable, "-m", "marrow.traceview", "--standalone"],

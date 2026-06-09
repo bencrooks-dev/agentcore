@@ -64,6 +64,8 @@ jobs:
           python examples/governance_example.py
           python examples/tool_use_example.py
           python examples/python_to_ari_compile/run_runtime_plan.py
+          python examples/gateway/demo.py
+          python -m marrow.traceview gateway_trace.json -o gateway_trace.html
 
   conformance:
     name: ARI conformance kit

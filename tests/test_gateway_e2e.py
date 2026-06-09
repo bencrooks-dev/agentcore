@@ -114,8 +114,11 @@ def test_full_session_through_the_gateway(session):
     code = s.close()
     assert code == 0
 
-    # flight recorder: the whole session is on disk
+    # flight recorder: the whole session is on disk, valid against the schema
     trace = json.loads(trace_path.read_text())
+    from marrow.compiler.validate import validate
+
+    validate(trace, "gateway_trace.schema.json")
     assert trace["schema"].startswith("marrow.gateway_trace/")
     assert trace["final_status"] == "completed"
     assert trace["upstream"]["server_info"]["name"] == "fake-mcp-server"
