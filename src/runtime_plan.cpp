@@ -1,5 +1,6 @@
 #include "runtime_plan.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
 
@@ -41,7 +42,7 @@ bool RuntimePlan::has_node(const std::string& id) const {
     return node_index_.count(id) > 0;
 }
 
-const RuntimeNode& RuntimePlan::node(const std::string& id) const {
+RuntimeNode RuntimePlan::node(const std::string& id) const {
     auto it = node_index_.find(id);
     if (it == node_index_.end()) {
         throw std::out_of_range("unknown node: " + id);
@@ -53,7 +54,7 @@ bool RuntimePlan::has_provider(const std::string& id) const {
     return providers_.count(id) > 0;
 }
 
-const ProviderBinding& RuntimePlan::provider(const std::string& id) const {
+ProviderBinding RuntimePlan::provider(const std::string& id) const {
     auto it = providers_.find(id);
     if (it == providers_.end()) {
         throw std::out_of_range("unknown provider: " + id);
@@ -65,7 +66,7 @@ bool RuntimePlan::has_tool(const std::string& name) const {
     return tools_.count(name) > 0;
 }
 
-const ToolBinding& RuntimePlan::tool(const std::string& name) const {
+ToolBinding RuntimePlan::tool(const std::string& name) const {
     auto it = tools_.find(name);
     if (it == tools_.end()) {
         throw std::out_of_range("unknown tool: " + name);
@@ -84,6 +85,7 @@ std::vector<std::string> RuntimePlan::provider_ids() const {
     std::vector<std::string> out;
     out.reserve(providers_.size());
     for (const auto& [id, _] : providers_) out.push_back(id);
+    std::sort(out.begin(), out.end());  // map iteration order is unspecified
     return out;
 }
 
@@ -91,6 +93,7 @@ std::vector<std::string> RuntimePlan::tool_names() const {
     std::vector<std::string> out;
     out.reserve(tools_.size());
     for (const auto& [name, _] : tools_) out.push_back(name);
+    std::sort(out.begin(), out.end());  // map iteration order is unspecified
     return out;
 }
 

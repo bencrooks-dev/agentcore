@@ -1,10 +1,11 @@
 """Execute a RuntimePlan through the native runtime and emit an ExecutionTrace.
 
-This is the runtime-execution + trace-emission step (brief Phases 6-7). It does
-NOT add a new executor: it materialises the plan as a :class:`marrow.Runtime`
-with :class:`marrow.Agent` nodes bound to the native ``MockProvider``, then
-drives the same step/handoff loop ``run_graph`` uses, recording each
-agent/provider event into a native ``ExecutionTrace``.
+The plan is first loaded into the native C++ ``RuntimePlan`` (``load_runtime_plan``);
+execution then reads its nodes, edges, and bindings *from that native object* and
+materialises them as a :class:`marrow.Runtime` with :class:`marrow.Agent` nodes
+bound to the native ``MockProvider``, driving the same step/handoff loop
+``run_graph`` uses and recording each agent/provider event into a native
+``ExecutionTrace``. No new executor is added — the C++ engine runs the turns.
 
 The MVP executes mock providers only — no provider that needs an API key. The
 trace's timestamps are wall-clock and therefore not reproducible; everything
@@ -18,6 +19,7 @@ from typing import Any
 
 from .. import _marrow as _c
 from .errors import CompileError
+from .runtime_plan import load_runtime_plan
 from .validate import validate
 
 MAX_STEPS = 16
@@ -37,7 +39,10 @@ def _trace_id(runtime_plan_id: str, initial_input: str) -> str:
 class _RecordingProvider(_c.Provider):
     """A Python provider that delegates to the native ``MockProvider`` and
     remembers the last response, so the executor can record token usage while
-    execution still runs through the C++ engine and the C++ mock."""
+    execution still runs through the C++ engine and the C++ mock.
+
+    The delegation re-enters the engine's GIL-released ``MockProvider`` path;
+    pybind's GIL guards nest safely, so this is intentional, not a bug."""
 
     def __init__(self, inner: Any, provider_id: str) -> None:
         super().__init__()
@@ -54,21 +59,11 @@ class _RecordingProvider(_c.Provider):
         return resp
 
 
-def _build_provider(binding: dict[str, Any], provider_id: str) -> _RecordingProvider:
-    if binding["type"] != "mock":
-        raise CompileError(
-            f"provider {provider_id!r} has unsupported type {binding['type']!r}; "
-            "the MVP executes mock providers only (no API keys required)"
-        )
-    return _RecordingProvider(_c.MockProvider(provider_id), provider_id)
-
-
-def _edge_matches(condition: dict[str, Any], output: str) -> bool:
-    kind = condition.get("type")
-    if kind == "always":
+def _edge_matches(edge: Any, output: str) -> bool:
+    if edge.condition_type == "always":
         return True
-    if kind == "contains":
-        return condition.get("value", "") in output
+    if edge.condition_type == "contains":
+        return edge.condition_value in output
     return False
 
 
@@ -132,38 +127,47 @@ def run_runtime_plan(plan: dict[str, Any], initial_input: str) -> dict[str, Any]
 
     validate(plan, "runtime_plan.schema.json")
 
-    nodes = {n["id"]: n for n in plan["nodes"]}
-    provider_bindings = plan["provider_bindings"]
-    if plan["entrypoint"] not in nodes:
-        raise CompileError(f"entrypoint {plan['entrypoint']!r} is not a node in the plan")
+    # Load the plan into the native C++ RuntimePlan, then drive execution from
+    # that object — the plan genuinely reaches and is read out of the native
+    # layer, not just the validated dict.
+    native = load_runtime_plan(plan)
 
-    providers = {
-        pid: _build_provider(binding, pid)
-        for pid, binding in provider_bindings.items()
-    }
-    runtime = Runtime()
-    agents: dict[str, Any] = {}
-    for node_id, node in nodes.items():
-        if node["provider"] not in providers:
+    providers: dict[str, _RecordingProvider] = {}
+    for provider_id in native.provider_ids():
+        binding = native.provider(provider_id)
+        if binding.type != "mock":
             raise CompileError(
-                f"node {node_id!r} references unbound provider {node['provider']!r}"
+                f"provider {provider_id!r} has unsupported type {binding.type!r}; "
+                "the MVP executes mock providers only (no API keys required)"
             )
-        agents[node_id] = runtime.add(
+        providers[provider_id] = _RecordingProvider(_c.MockProvider(provider_id), provider_id)
+
+    runtime = Runtime()
+    nodes: dict[str, Any] = {}
+    agents: dict[str, Any] = {}
+    for node in native.nodes():
+        if not native.has_provider(node.provider):
+            raise CompileError(
+                f"node {node.id!r} references unbound provider {node.provider!r}"
+            )
+        nodes[node.id] = node
+        agents[node.id] = runtime.add(
             Agent(
-                name=node_id,
-                provider=providers[node["provider"]],
-                system_prompt=node["system_prompt"],
+                name=node.id,
+                provider=providers[node.provider],
+                system_prompt=node.system_prompt,
             )
         )
 
+    edges = native.edges()
     trace = _c.ExecutionTrace(
-        _trace_id(plan.get("runtime_plan_id", ""), initial_input),
-        plan.get("runtime_plan_id", ""),
+        _trace_id(native.runtime_plan_id, initial_input),
+        native.runtime_plan_id,
     )
     trace.set_input(initial_input)
     trace.set_started_at(_now_ms())
 
-    current = plan["entrypoint"]
+    current = native.entrypoint
     runtime.router.set_active(current)
     runtime.send(frm="<user>", to=current, text=initial_input)
     payload = initial_input
@@ -172,18 +176,17 @@ def run_runtime_plan(plan: dict[str, Any], initial_input: str) -> dict[str, Any]
     try:
         for _ in range(MAX_STEPS):
             node = nodes[current]
-            provider_id = node["provider"]
-            model = provider_bindings[provider_id]["model"]
+            model = native.provider(node.provider).model
 
             _event(trace, "agent_started", agent=current)
             runtime.deliver(agents[current])
             payload = agents[current].step(model=model)
-            resp = providers[provider_id].last
-            _event(trace, "provider_called", agent=current, provider=provider_id)
+            resp = providers[node.provider].last
+            _event(trace, "provider_called", agent=current, provider=node.provider)
             trace.add_provider_call(
                 _c.ProviderCall(
                     current,
-                    provider_id,
+                    node.provider,
                     model,
                     int(getattr(resp, "prompt_tokens", 0) or 0),
                     int(getattr(resp, "completion_tokens", 0) or 0),
@@ -192,9 +195,9 @@ def run_runtime_plan(plan: dict[str, Any], initial_input: str) -> dict[str, Any]
             _event(trace, "agent_completed", agent=current)
 
             next_node = None
-            for edge in plan["edges"]:
-                if edge["from"] == current and _edge_matches(edge["condition"], payload):
-                    next_node = edge["to"]
+            for edge in edges:
+                if edge.from_ == current and _edge_matches(edge, payload):
+                    next_node = edge.to
                     break
             if next_node is None:
                 break

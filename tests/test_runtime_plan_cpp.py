@@ -93,6 +93,20 @@ def test_native_execution_trace_records():
     assert calls[0].prompt_tokens == 3 and calls[0].completion_tokens == 7
 
 
+def test_native_id_accessors_are_sorted():
+    g = AgentGraph(name="multi")
+    g.add_provider(ProviderSpec(id="zeta", type="mock", model="m"))
+    g.add_provider(ProviderSpec(id="alpha", type="mock", model="m"))
+    g.add_tool(ToolSpec(name="zoo"))
+    g.add_tool(ToolSpec(name="ant"))
+    g.add_agent(AgentNode(id="a", name="A", provider="alpha", tools=["ant", "zoo"]))
+    g.set_entrypoint("a")
+    native = load_runtime_plan(ari_to_runtime_plan(compile_to_ari(g)))
+    # Map-backed accessors return a deterministic (sorted) order across platforms.
+    assert native.provider_ids() == ["alpha", "zeta"]
+    assert native.tool_names() == ["ant", "zoo"]
+
+
 def test_default_trace_status_is_completed():
     tr = _c.ExecutionTrace()
     assert tr.final_status == "completed"

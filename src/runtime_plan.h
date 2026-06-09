@@ -70,13 +70,17 @@ public:
     const std::vector<RuntimeNode>& nodes() const noexcept { return nodes_; }
     const std::vector<RuntimeEdge>& edges() const noexcept { return edges_; }
 
+    // Lookups return by value (the structs are small) so a held result can
+    // never dangle if the plan is mutated afterwards. Throw if absent.
     bool has_node(const std::string& id) const;
-    const RuntimeNode& node(const std::string& id) const;     // throws if absent
+    RuntimeNode node(const std::string& id) const;
     bool has_provider(const std::string& id) const;
-    const ProviderBinding& provider(const std::string& id) const;  // throws
+    ProviderBinding provider(const std::string& id) const;
     bool has_tool(const std::string& name) const;
-    const ToolBinding& tool(const std::string& name) const;        // throws
+    ToolBinding tool(const std::string& name) const;
 
+    // Ids are returned in a deterministic order (insertion order for nodes,
+    // sorted for the map-backed providers/tools).
     std::vector<std::string> node_ids() const;
     std::vector<std::string> provider_ids() const;
     std::vector<std::string> tool_names() const;

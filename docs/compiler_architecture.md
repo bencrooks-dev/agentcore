@@ -57,7 +57,7 @@ are defined for completeness and validated structurally where cheap.
 | 8 | **State and memory layout planning** | Resolve per-agent state/memory layout | partial (pass-through) |
 | 9 | **Optimization passes** | Canonicalize, dedupe, deterministic ordering | **[MVP]** (canonicalize) |
 | 10 | **RuntimePlan generation** | Lower ARI → `runtime_plan` with bindings + deterministic id | **[MVP]** |
-| 11 | **C++ runtime execution** | Construct a C++ `RuntimePlan`; run through the engine | **[MVP]** |
+| 11 | **C++ runtime execution** | Load a native C++ `RuntimePlan`; the executor reads it and runs the turns through the C++ engine | **[MVP]** |
 | 12 | **ExecutionTrace emission** | Record events/calls/status into a C++ `ExecutionTrace` → JSON | **[MVP]** |
 | 13 | **Replay support** | Re-run from a RuntimePlan + recorded inputs | partial (deterministic ids) |
 
@@ -169,7 +169,10 @@ Canonical conventions:
   tool_bindings, provider_bindings` and exposes inspection
   (`node_count(), entrypoint(), node(id), provider(id), ...`). **No JSON parser is
   linked into C++**; Python marshals the already-validated dict into the struct.
-  "Load" here means "construct and inspect in C++," stated plainly.
+  "Load" here means "construct and inspect in C++," stated plainly. The executor
+  (stage 11) builds this object via `load_runtime_plan` and reads its
+  nodes/edges/bindings *out of it* to drive the run — the plan genuinely reaches
+  the native layer, it is not just a Python dict.
 
 ### 3.7 ExecutionTraceIR — `ari/schemas/execution_trace.schema.json` **[MVP]**
 
