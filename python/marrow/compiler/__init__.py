@@ -12,6 +12,20 @@ the ARI manifests it produces are not normative ARI 0.1 (see
 """
 from __future__ import annotations
 
+from .ari_emit import canonical_json, compile_to_ari, graph_id
 from .errors import CompileError
+from .graph import AgentGraph, AgentNode, Edge, ProviderSpec, ToolSpec, always, contains
 
-__all__ = ["CompileError"]
+__all__ = [
+    "AgentGraph",
+    "AgentNode",
+    "ToolSpec",
+    "ProviderSpec",
+    "Edge",
+    "always",
+    "contains",
+    "compile_to_ari",
+    "graph_id",
+    "canonical_json",
+    "CompileError",
+]
