@@ -53,17 +53,20 @@ are defined for completeness and validated structurally where cheap.
 | 4 | **ARI validation** | Validate the manifest against `ari/schemas/*` | **[MVP]** |
 | 5 | **Tool contract validation** | Every referenced tool resolves to a `ToolSpec` | **[MVP]** |
 | 6 | **Provider contract validation** | Every referenced provider resolves to a `ProviderSpec` | **[MVP]** |
-| 7 | **Policy and budget planning** | Resolve policy checkpoints + budgets | partial (empty plan) |
+| 7 | **Policy and budget planning** | Resolve + enforce policy checkpoints and budgets | **[MVP]** |
 | 8 | **State and memory layout planning** | Resolve per-agent state/memory layout | partial (pass-through) |
 | 9 | **Optimization passes** | Canonicalize, dedupe, deterministic ordering | **[MVP]** (canonicalize) |
 | 10 | **RuntimePlan generation** | Lower ARI → `runtime_plan` with bindings + deterministic id | **[MVP]** |
 | 11 | **C++ runtime execution** | Load a native C++ `RuntimePlan`; the executor reads it and runs the turns through the C++ engine | **[MVP]** |
 | 12 | **ExecutionTrace emission** | Record events/calls/status into a C++ `ExecutionTrace` → JSON | **[MVP]** |
-| 13 | **Replay support** | Re-run from a RuntimePlan + recorded inputs | partial (deterministic ids) |
+| 13 | **Replay support** | Re-run a RuntimePlan deterministically (timestamps aside) | **[MVP]** |
 
-The MVP proves stages 1–6 and 9–12 end-to-end for a single mock-provider agent.
-Stages 7, 8, 13 are present in shape (schemas/fields) but not exercised as
-behavior; they are the documented growth path, not claims.
+The MVP proves stages 1–7 and 9–13 end-to-end for a single mock-provider agent:
+the chain compiles, enforces policy and budgets, executes, traces, and replays.
+Stage 8 (state/memory layout) is realized by the engine's `AgentState` and passed
+through. The remaining gaps are non-mock providers and non-Python frontends,
+which are future work (see [`language_roadmap.md`](./language_roadmap.md)) — not
+claims made here.
 
 ---
 
@@ -137,7 +140,7 @@ Canonical conventions:
 - **Required:** `id`, `action`, `decision`, `approval_required`, `evidence_required`.
 - **Optional:** `description`.
 - **JSON:** `{"id":"p1","action":"tool:echo","decision":"allow","approval_required":false,"evidence_required":true}`
-- **C++ mapping:** → `PolicyCheckpoint` (struct present; not enforced in MVP). MVP RuntimePlans carry `policy_checkpoints: []`.
+- **C++ mapping:** policy checkpoints are carried in `runtime_plan.policy_checkpoints` and enforced by the executor's `PolicyEngine` (`governance.py`); each decision is recorded in the native `ExecutionTrace.policy_decisions`. Actions are matched as `"agent:<id>"`, `"provider:<id>"`, `"tool:<name>"`, or `"*"`.
 
 ### 3.6 RuntimePlanIR — `ari/schemas/runtime_plan.schema.json` **[MVP]**
 
@@ -217,8 +220,10 @@ Canonical conventions:
 - **Required:** `id`, `max_tokens`, `max_cost_usd`, `max_steps`.
 - **Optional:** `currency`.
 - **JSON:** `{"id":"b1","max_tokens":100000,"max_cost_usd":1.0,"max_steps":16}`
-- **C++ mapping:** corresponds to the existing `UsageTracker` (Python) and the
-  `max_steps` bound in `run_graph`. Not enforced as a compiled budget in MVP.
+- **C++ mapping:** carried in `runtime_plan.budget` and enforced by the
+  executor's `BudgetMeter` (`governance.py`): steps/tokens/cost are metered each
+  turn, a breach halts the run (`"exhausted"` / `"over_budget"`), and consumption
+  is recorded in the native `ExecutionTrace.budget_usage`. **[MVP]**
 
 ### 3.10 EvidenceSpecIR
 
@@ -234,9 +239,10 @@ Canonical conventions:
 - **Required:** `on_tool_error`, `on_provider_error`, `on_timeout`.
 - **Optional:** `on_cancel`.
 - **JSON:** `{"on_tool_error":"record_and_continue","on_provider_error":"abort","on_timeout":"abort"}`
-- **C++ mapping:** the engine already distinguishes errors (cancellation,
-  timeouts, tool result envelope `{"ok":false}`). MVP records errors into the
-  trace and sets `final_status:"error"`; it does not yet branch on policy.
+- **C++ mapping:** carried in `runtime_plan.failure_semantics`. The executor
+  records any error into the trace and sets `final_status:"error"` (the abort
+  path). `record_and_continue` is reserved: the mock provider does not fail, so
+  only the abort path is exercised today.
 
 ### 3.12 RollbackPlanIR
 
@@ -244,7 +250,10 @@ Canonical conventions:
 - **Required:** `id`, `steps`.
 - **Optional:** `description`.
 - **JSON:** `{"id":"rb1","steps":[{"on":"agent_1","action":"clear_state"}]}`
-- **C++ mapping:** none yet. Documented as future; not in MVP.
+- **C++ mapping:** carried in `runtime_plan.rollback_plan`; the executor runs the
+  steps (e.g. `clear_state` on an agent) whenever a run terminates abnormally
+  (denied / over_budget / error / exhausted), recording `rollback_started` and
+  `rollback_step` events. **[MVP]**
 
 ### 3.13 DeploymentManifestIR — `ari/schemas/deployment_manifest.schema.json`
 
@@ -252,7 +261,9 @@ Canonical conventions:
 - **Required:** `version`, `name`, `runtime_plan_id`, `target`.
 - **Optional:** `replicas`, `env`.
 - **JSON:** `{"version":"ari/v0.draft","name":"echo_agent","runtime_plan_id":"rp_0123456789abcdef","target":"local"}`
-- **C++ mapping:** none yet. Schema only; documented as future.
+- **C++ mapping:** generated from a RuntimePlan by `make_deployment_manifest`
+  (`deploy.py`) and validated against the schema. It records deployment *intent*
+  (where a plan should run); actually deploying it is out of scope. **[MVP]**
 
 ---
 
@@ -260,31 +271,34 @@ Canonical conventions:
 
 ```
 ari/
-  schemas/   agent_graph, tool_spec, provider_spec, policy_spec,
-             runtime_plan, execution_trace, deployment_manifest  (*.schema.json)
+  schemas/   agent_graph, tool_spec, provider_spec, policy_spec, budget_spec,
+             failure_semantics, rollback_plan, runtime_plan, execution_trace,
+             deployment_manifest  (*.schema.json)
   examples/  echo_agent.ari.json, echo_agent.runtime_plan.json
   spec/      README.md  (draft note: manifests are non-normative vs ARI 0.1)
 
 python/marrow/compiler/
-  __init__.py     public API: AgentGraph, AgentNode, ToolSpec, ProviderSpec,
-                  compile_to_ari, ari_to_runtime_plan, compile, run_runtime_plan,
-                  load_runtime_plan, CompileError
-  graph.py        authoring types (AgentGraph/AgentNode/ToolSpec/ProviderSpec)
+  __init__.py     public API (authoring types, compile_*, run/replay, deploy)
+  graph.py        authoring types (AgentGraph/AgentNode/ToolSpec/ProviderSpec/
+                  PolicySpec/BudgetSpec/FailureSemantics/RollbackStep)
   ari_emit.py     graph -> ARI manifest dict (+ canonicalization, graph_id)
   validate.py     JSON-schema validation against ari/schemas/* (stdlib only)
-  runtime_plan.py ARI -> RuntimePlan dict (bindings, deterministic runtime_plan_id)
-  execute.py      RuntimePlan -> run through Runtime/Agent/MockProvider -> ExecutionTrace
+  runtime_plan.py ARI -> RuntimePlan dict (bindings, governance, deterministic id)
+  governance.py   PolicyEngine + BudgetMeter enforcement primitives
+  execute.py      RuntimePlan -> run + enforce -> ExecutionTrace (rollback on failure)
+  deploy.py       RuntimePlan -> DeploymentManifest
+  replay.py       deterministic re-execution + trace comparison
   errors.py       CompileError + structured, clear messages
   compile.py      end-to-end convenience: graph -> trace
 
 src/
   runtime_plan.{h,cpp}     C++ RuntimePlan + RuntimeNode/Edge/ToolBinding/ProviderBinding
-  execution_trace.{h,cpp}  C++ ExecutionTrace + events
+  execution_trace.{h,cpp}  C++ ExecutionTrace + events/policy decisions/budget usage
   bindings/bindings.cpp    (additive) expose RuntimePlan + ExecutionTrace
 
-examples/python_to_ari_compile/
-  README.md, build_graph.py, compile_to_ari.py, run_runtime_plan.py,
-  expected_ari.json, expected_runtime_plan.json, expected_trace.json
+examples/
+  python_to_ari_compile/   the compile->execute->trace chain (+ golden fixtures)
+  governance_example.py    policy denial + approval, budgets, rollback, deployment
 ```
 
 The compiler package depends on the existing runtime (`marrow.Runtime`,
@@ -310,13 +324,23 @@ sufficient for the seven schemas, not a full JSON-Schema engine.
 ## 6. What the MVP deliberately does not do
 
 - Compile arbitrary Python (only the declared graph/specs).
-- Enforce budgets or run a policy engine (schemas + empty plans only).
-- Execute rollback or deployment manifests (schemas/structs only).
 - Use any non-mock provider or require any API key.
+- Run an automatic tool-use loop. Tool-call policies are enforced *when* a tool
+  is invoked, but the mock provider does not request tools, so tool actions are
+  exercised only at the `PolicyEngine` level (that loop is future work).
+- Branch on `FailureSemantics` beyond aborting on error: the field is carried in
+  the plan, but only the abort path is realized for the mock (which does not
+  fail). `record_and_continue` is reserved for real providers.
+- Parse RuntimePlan JSON inside C++ — the plan is constructed across the pybind
+  boundary (a deliberate near-zero-dependency choice).
+- Provide non-Python frontends (TypeScript, WASM, …) — see
+  [`language_roadmap.md`](./language_roadmap.md).
 - Serialize arbitrary lambda edge conditions — edges use a small declarative
   condition form (`{"type":"always"}` or `{"type":"contains","value":"..."}`).
 - Replace `ARI-SPEC.md` or claim the manifests are normative ARI 0.1.
 
-After the MVP lands, Marrow can be described as an **early** AI-aware
-compiler/runtime: the compile→plan→execute→trace chain is real and tested, while
-most governance/optimization stages remain specified-but-not-yet-built.
+The compile→plan→**enforce**→execute→trace→replay chain is real and tested,
+including policy enforcement, budgets, evidence, rollback, deployment manifests,
+and deterministic replay. What remains for a *full* compiler/runtime is non-mock
+execution and non-Python frontends — so Marrow is honestly an **early** AI-aware
+compiler/runtime, not yet a complete one.

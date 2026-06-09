@@ -4,6 +4,25 @@ All notable changes to `marrow` are documented here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — compiler governance (experimental)
+
+- **Policy enforcement** — `PolicySpec` checkpoints (allow / deny /
+  require-approval, with an optional approver and evidence) are enforced by the
+  executor's `PolicyEngine`; a denied action halts the run and rolls back. Each
+  decision is recorded in the native `ExecutionTrace.policy_decisions`.
+- **Budgets** — `BudgetSpec` (max steps / tokens / cost) is metered each turn by
+  `BudgetMeter`; a breach halts with `final_status` `"exhausted"` / `"over_budget"`,
+  and consumption is recorded in `ExecutionTrace.budget_usage`.
+- **Rollback** — `RollbackPlan` compensating steps (e.g. `clear_state`) run on any
+  abnormal termination.
+- **Replay** — `replay()` / `traces_equivalent()` re-execute a plan deterministically.
+- **Deployment manifests** — `make_deployment_manifest()` produces a validated
+  `DeploymentManifest` from a RuntimePlan.
+- New draft schemas `budget_spec`, `failure_semantics`, `rollback_plan`; the
+  executor now drives execution from the loaded native `RuntimePlan`. New
+  `examples/governance_example.py`. All additive; existing APIs and tests
+  unchanged.
+
 ### Added — early compiler layer (experimental)
 
 - **`marrow.compiler`** — a Python frontend (`AgentGraph` / `AgentNode` /

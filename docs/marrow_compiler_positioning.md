@@ -41,15 +41,21 @@ natively.
 
 ## What is actually built today
 
-Be precise. The compiler is an **early MVP**, not the full vision:
+Be precise. The compiler is **early** — functional, but not the full vision:
 
 - **Built and tested:** Python `AgentGraph` → ARI manifest → RuntimePlan (with
   deterministic ids) → execution through the native runtime → ExecutionTrace, on
-  a mock provider, with a runnable
-  [example](../examples/python_to_ari_compile/) and tests.
-- **Specified but not yet built:** policy/budget enforcement, rollback and
-  deployment execution, optimization passes, replay, and non-mock providers —
-  these have schemas/fields but no runtime behavior.
+  a mock provider. Governance is enforced, not just described: **policy
+  checkpoints** (allow / deny / require-approval, with evidence), **budgets**
+  (steps / tokens / cost), **rollback** on abnormal termination, **deterministic
+  replay**, and **deployment-manifest** generation — each with a runnable
+  example ([compile](../examples/python_to_ari_compile/),
+  [governance](../examples/governance_example.py)) and tests.
+- **Not yet built:** non-mock providers (real LLM execution needs API keys);
+  non-Python frontends (TypeScript, WASM, …); an automatic tool-use loop (so
+  tool-call policies fire on real tool calls); `FailureSemantics` branching
+  beyond abort; and a native JSON parser (plans are constructed across the pybind
+  boundary). These are deliberate future work, not claims.
 
 ## Avoid
 
@@ -64,5 +70,6 @@ Be precise. The compiler is an **early MVP**, not the full vision:
 
 > Marrow is an AI-aware native runtime, and an **early** AI-aware
 > compiler/runtime: the Python→ARI→RuntimePlan→execute→trace chain works and is
-> tested; most governance and optimization stages are specified but not yet
-> built.
+> tested, with policy enforcement, budgets, evidence, rollback, replay, and
+> deployment manifests. What remains for a *full* compiler/runtime is non-mock
+> execution and non-Python frontends.

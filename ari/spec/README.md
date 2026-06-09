@@ -29,10 +29,13 @@ major version; nothing in this directory changes it.
 | `agent_graph.schema.json` | The authored agent system (compiler input) | yes |
 | `tool_spec.schema.json` | Tool contract (in/out schema, side effects, timeout, approval) | yes |
 | `provider_spec.schema.json` | Logical provider id → type/model | yes |
-| `policy_spec.schema.json` | Governance checkpoint | schema only |
+| `policy_spec.schema.json` | Governance checkpoint (enforced at runtime) | yes |
+| `budget_spec.schema.json` | Step / token / cost budget (enforced at runtime) | yes |
+| `failure_semantics.schema.json` | How the runtime reacts to failures | partial |
+| `rollback_plan.schema.json` | Compensating steps run on abnormal termination | yes |
 | `runtime_plan.schema.json` | Lowered, bound, executable plan | yes |
 | `execution_trace.schema.json` | Portable record of one run | yes |
-| `deployment_manifest.schema.json` | Where/how a plan is deployed | schema only |
+| `deployment_manifest.schema.json` | Where/how a plan is deployed (generated) | yes |
 
 See [`docs/compiler_architecture.md`](../../docs/compiler_architecture.md) for
 the field-by-field design and the compile pipeline.
