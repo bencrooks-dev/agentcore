@@ -261,6 +261,7 @@ export interface BudgetSpecOptions {
   maxSteps?: number;
   maxTokens?: number | null;
   maxCostUsd?: number | null;
+  maxWallMs?: number | null;
   id?: string;
   currency?: string | null;
 }
@@ -273,6 +274,7 @@ export class BudgetSpec {
   maxSteps: number;
   maxTokens: number | null;
   maxCostUsd: number | null;
+  maxWallMs: number | null;
   id: string;
   currency: string | null;
 
@@ -280,6 +282,7 @@ export class BudgetSpec {
     this.maxSteps = options.maxSteps ?? 16;
     this.maxTokens = options.maxTokens ?? null;
     this.maxCostUsd = options.maxCostUsd ?? null;
+    this.maxWallMs = options.maxWallMs ?? null;
     this.id = options.id ?? "budget";
     this.currency = options.currency ?? null;
   }
@@ -291,6 +294,9 @@ export class BudgetSpec {
       max_cost_usd: this.maxCostUsd,
       max_steps: this.maxSteps,
     };
+    if (this.maxWallMs !== null) {
+      out["max_wall_ms"] = this.maxWallMs;
+    }
     if (this.currency !== null) {
       out["currency"] = this.currency;
     }

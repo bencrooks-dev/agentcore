@@ -266,3 +266,24 @@ test("a governed graph emits policies and budget with the right shape", () => {
     currency: "USD",
   });
 });
+
+test("parity: a wall-clock budget emits max_wall_ms and matches Python's graph_id", () => {
+  const graph = buildEchoGraph().setBudget(
+    new BudgetSpec({
+      maxSteps: 8,
+      maxTokens: 10000,
+      maxCostUsd: 1.0,
+      maxWallMs: 500,
+    }),
+  );
+  const ari = compileToAri(graph);
+  assert.deepStrictEqual(ari["budget"], {
+    id: "budget",
+    max_tokens: 10000,
+    max_cost_usd: 1.0,
+    max_steps: 8,
+    max_wall_ms: 500,
+  });
+  // Identical to the Python frontend's graph_id for the same governed graph.
+  assert.equal(graphId(ari), "g_451113bd38fec577");
+});

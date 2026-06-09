@@ -5,9 +5,19 @@ from marrow.compiler import (
     ProviderSpec,
     ToolSpec,
     ari_to_runtime_plan,
+    canonical_json,
     compile_to_ari,
     runtime_plan_id,
 )
+
+
+def test_canonical_json_folds_integral_floats_for_cross_language_parity():
+    # Integral floats fold to ints so Python and the TS frontend agree (JS has no
+    # 1.0-vs-1 distinction); non-integral floats and bools are unchanged.
+    assert canonical_json({"x": 1.0}) == '{"x":1}'
+    assert canonical_json({"x": 0.0}) == '{"x":0}'
+    assert canonical_json({"x": 1.5}) == '{"x":1.5}'
+    assert canonical_json({"a": True, "b": False}) == '{"a":true,"b":false}'
 
 
 def echo_graph() -> AgentGraph:

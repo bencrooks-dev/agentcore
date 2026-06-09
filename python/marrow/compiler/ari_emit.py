@@ -17,10 +17,32 @@ from .validate import validate
 _POLICY_DECISIONS = {"allow", "deny", "require_approval"}
 
 
+def _canonicalize(obj: Any) -> Any:
+    """Normalize values so the canonical form is identical across languages.
+
+    The one cross-language hazard is integral floats: Python serializes ``1.0``
+    as ``"1.0"`` while JavaScript serializes it as ``"1"``. We fold integral
+    floats to ints so content-addressed ids match whichever frontend emitted the
+    manifest. (Non-integral floats already serialize identically.)
+    """
+    if isinstance(obj, bool):
+        return obj
+    if isinstance(obj, float) and obj.is_integer():
+        return int(obj)
+    if isinstance(obj, dict):
+        return {k: _canonicalize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_canonicalize(v) for v in obj]
+    return obj
+
+
 def canonical_json(obj: Any) -> str:
     """Stable serialisation used for content-addressed ids: keys sorted, no
-    insignificant whitespace, UTF-8 preserved."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    insignificant whitespace, UTF-8 preserved, integral floats folded to ints
+    (so Python and the TypeScript frontend produce identical ids)."""
+    return json.dumps(
+        _canonicalize(obj), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
 
 
 def graph_id(ari: dict[str, Any]) -> str:
