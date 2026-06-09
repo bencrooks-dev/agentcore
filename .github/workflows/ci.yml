@@ -100,6 +100,10 @@ jobs:
         run: python -m pip install -e ".[test,all]" -v
       - name: Run provider contract tests (fake clients, no keys)
         run: pytest tests/test_real_providers.py tests/test_providers.py -v
+      - name: Smoke the key-gated examples (no-op without keys, catches import/syntax)
+        run: |
+          python examples/openai_example.py
+          python examples/anthropic_example.py
 
   typescript:
     name: TypeScript frontend

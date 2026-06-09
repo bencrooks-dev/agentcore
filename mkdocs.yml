@@ -90,6 +90,7 @@ nav:
     - Async: concepts/async.md
     - Persistence: concepts/persistence.md
     - Observability: concepts/observability.md
+    - Compiler: concepts/compiler.md
   - Production:
     - Stability policy: stability.md
     - Security: security.md
@@ -97,6 +98,7 @@ nav:
   - API reference:
     - marrow: api/marrow.md
     - marrow.providers: api/providers.md
+    - marrow.compiler: api/compiler.md
   - Project:
     - Roadmap: roadmap.md
     - Contributing: contributing.md

@@ -17,8 +17,7 @@ natively.
 
 ## One-liner
 
-> Marrow is the native compiler/runtime layer for production agents, below MCP
-> and A2A.
+> Marrow is the native compiler/runtime layer agents run on, below MCP and A2A.
 
 ## Three-sentence description
 

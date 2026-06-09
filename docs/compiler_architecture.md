@@ -212,8 +212,10 @@ Canonical conventions:
 - **Required (MemorySpec):** `agent_id`, `capacity`.
 - **Optional:** `metadata`.
 - **JSON:** `{"agent_id":"agent_1","initial_messages":[],"system_prompt":"..."}`
-- **C++ mapping:** already realized by `AgentState` and `MemoryCache` in the
-  engine. MVP passes state through unchanged (`state: {}`); no new behavior.
+- **C++ mapping:** `AgentState` and `MemoryCache` realize state/memory in the
+  engine. Authored `AgentNode.state` reaches the ARI manifest but is **not yet
+  applied at runtime** — it is dropped when lowering to the RuntimePlan (no
+  initial-state seeding path yet). Use an empty `state: {}` until that lands.
 
 ### 3.9 BudgetSpecIR
 
@@ -227,7 +229,12 @@ Canonical conventions:
   is recorded in the native `ExecutionTrace.budget_usage`. **[MVP]** `max_steps`
   and `max_wall_ms` are pre-emptive (checked before each step); token/cost limits
   are checked *after* each provider call (the breaching call still runs, since
-  token counts are only known once the call returns).
+  token counts are only known once the call returns). Note `max_steps` counts
+  **graph node visits**, not provider calls — a tool-using agent makes up to
+  `MAX_TOOL_ITERATIONS` provider calls per visit, so use `max_tokens` /
+  `max_cost_usd` / `max_wall_ms` to bound spend for tool-heavy graphs. A per-tool
+  `timeout_ms` and `FailureSemantics.on_timeout` are carried but not yet enforced
+  (the wall-clock budget is the realized time bound).
 
 ### 3.10 EvidenceSpecIR
 
@@ -332,8 +339,9 @@ sufficient for the seven schemas, not a full JSON-Schema engine.
 The compile→plan→**enforce**→execute→trace→replay chain is real and tested, with
 **real and pluggable providers** (mock default; OpenAI/Anthropic/Ollama built in;
 bring-your-own via a factory), a **policy-gated tool-use loop** (agents invoke
-tools through the C++ ToolRegistry, gated by `tool:` policies), **full failure
-semantics** (provider and tool errors honor abort / record-and-continue),
+tools through the C++ ToolRegistry, gated by `tool:` policies and restricted to
+each agent's declared tools), **full failure semantics** (provider and tool
+errors honor abort / record-and-continue),
 **native C++ JSON** (the core parses RuntimePlan JSON and serializes the trace),
 **budgets** (steps / tokens / cost / wall-clock), policy enforcement, evidence,
 rollback, deployment manifests, deterministic replay, and a **TypeScript
