@@ -107,8 +107,8 @@ def test_two_node_plan_runs_both_agents():
     assert agents_seen == ["researcher", "writer"]
 
 
-def test_unsupported_provider_type_is_rejected():
+def test_unknown_provider_type_is_rejected():
     plan = echo_plan()
-    plan["provider_bindings"]["mock"]["type"] = "openai"
-    with pytest.raises(CompileError, match="mock providers only"):
+    plan["provider_bindings"]["mock"]["type"] = "does-not-exist"
+    with pytest.raises(CompileError, match="unknown provider type"):
         run_runtime_plan(plan, "hi")

@@ -25,6 +25,7 @@ from typing import Any
 from .. import _marrow as _c
 from .errors import CompileError
 from .governance import Approver, BudgetMeter, PolicyEngine
+from .providers import ProviderFactory, build_provider
 from .runtime_plan import load_runtime_plan
 from .validate import validate
 
@@ -182,15 +183,18 @@ def run_runtime_plan(
     *,
     approver: Approver | None = None,
     pricing: dict[str, tuple[float, float]] | None = None,
+    providers: dict[str, ProviderFactory] | None = None,
 ) -> dict[str, Any]:
     """Execute ``plan`` with ``initial_input`` and return an ExecutionTrace dict.
 
     ``approver`` decides whether ``require_approval`` / ``approval_required``
     policy actions may proceed (default: fail-closed). ``pricing`` maps a model
     to ``(prompt_rate, completion_rate)`` per token for cost budgets (the mock
-    model costs nothing). Raises :class:`CompileError` if the plan is malformed
-    or references a provider type the MVP cannot execute. The returned trace
-    validates against ``execution_trace.schema.json``.
+    model costs nothing). ``providers`` registers custom provider types (type ->
+    factory) and overrides the built-ins (``mock``/``openai``/``anthropic``/
+    ``ollama``). Raises :class:`CompileError` if the plan is malformed or a
+    provider is unknown/unavailable. The returned trace validates against
+    ``execution_trace.schema.json``.
     """
     # Imported lazily so importing the compiler does not pull in the full SDK
     # until an execution is actually requested (and to avoid an import cycle
@@ -204,15 +208,18 @@ def run_runtime_plan(
     # layer, not just the validated dict.
     native = load_runtime_plan(plan)
 
-    providers: dict[str, _RecordingProvider] = {}
+    provider_instances: dict[str, _RecordingProvider] = {}
     for provider_id in native.provider_ids():
         binding = native.provider(provider_id)
-        if binding.type != "mock":
-            raise CompileError(
-                f"provider {provider_id!r} has unsupported type {binding.type!r}; "
-                "the MVP executes mock providers only (no API keys required)"
-            )
-        providers[provider_id] = _RecordingProvider(_c.MockProvider(provider_id), provider_id)
+        spec = {
+            "id": provider_id,
+            "type": binding.type,
+            "model": binding.model,
+            "config_ref": binding.config_ref,
+        }
+        provider_instances[provider_id] = _RecordingProvider(
+            build_provider(spec, providers), provider_id
+        )
 
     runtime = Runtime()
     nodes: dict[str, Any] = {}
@@ -226,7 +233,7 @@ def run_runtime_plan(
         agents[node.id] = runtime.add(
             Agent(
                 name=node.id,
-                provider=providers[node.provider],
+                provider=provider_instances[node.provider],
                 system_prompt=node.system_prompt,
             )
         )
@@ -282,7 +289,7 @@ def run_runtime_plan(
             _event(trace, "agent_started", agent=current)
             runtime.deliver(agents[current])
             payload = agents[current].step(model=model)
-            resp = providers[node.provider].last
+            resp = provider_instances[node.provider].last
             prompt_tokens = int(getattr(resp, "prompt_tokens", 0) or 0)
             completion_tokens = int(getattr(resp, "completion_tokens", 0) or 0)
             budget.record_provider_usage(model, prompt_tokens, completion_tokens)
