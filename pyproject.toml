@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "marrow-rt"
 version = "0.1.0rc1"
-description = "Lightweight C++ core for AI agent orchestration"
+description = "ARI reference runtime and AI-aware compiler for agents — native C++ core with Python/TypeScript frontends"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "Apache-2.0"}
