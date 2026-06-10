@@ -4,6 +4,25 @@ All notable changes to `marrow` are documented here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — MCP gateway + flight recorder
+
+- **MCP governance gateway** — `marrow-gateway` (also `python -m marrow.gateway`):
+  a transparent stdio proxy that governs any MCP server with no changes to the
+  agent or server. `tools/call` is gated by the compiler's `PolicyEngine`
+  (`tool:<name>` actions), a tool allowlist, and call/wall-clock budgets;
+  `tools/list` hides allowlist misses and statically denied tools; blocked calls
+  never reach the server. Fail-closed handling for batch requests and invalid
+  client JSON. Recorded arguments/results are redacted and size-capped.
+- **Flight recorder** — `marrow-trace` (also `python -m marrow.traceview`):
+  renders a compiler `ExecutionTrace` or gateway trace as one self-contained
+  HTML report (status, budget bars, policy decisions, tool calls, timeline).
+  A drop-zone variant is hosted on the docs site; rendering is fully local.
+- **Gateway trace schema** — `ari/schemas/gateway_trace.schema.json` (draft,
+  non-normative), validated in the gateway end-to-end test.
+- **Demo** — [`examples/gateway/`](https://github.com/bencrooks-dev/marrow/tree/main/examples/gateway): a small MCP file server,
+  a gateway config that denies the destructive tool, and a client that proves
+  the deny (and that the server never saw the call).
+
 ### Added — compiler completion (real providers, tools, native JSON, TS)
 
 - **Pluggable providers** — the executor builds providers by type: `mock`/`echo`
@@ -21,7 +40,7 @@ All notable changes to `marrow` are documented here. The format follows [Keep a 
   The plan is now loaded by parsing JSON in C++, not marshalled field-by-field.
 - **Wall-clock budgets** — `BudgetSpec(max_wall_ms=…)` bounds total run time
   (pre-emptive, alongside `max_steps`).
-- **TypeScript frontend** — [`ts/`](ts/) emits ARI manifests identical to the
+- **TypeScript frontend** — [`ts/`](https://github.com/bencrooks-dev/marrow/tree/main/ts) emits ARI manifests identical to the
   Python frontend (parity test on `graph_id` + the manifest). CI builds and tests it.
 
 ### Added — compiler governance (experimental)

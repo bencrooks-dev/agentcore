@@ -105,6 +105,8 @@ nav:
     - Persistence: concepts/persistence.md
     - Observability: concepts/observability.md
     - Compiler: concepts/compiler.md
+    - MCP gateway: concepts/gateway.md
+    - Flight recorder: concepts/flight-recorder.md
   - Production:
     - Stability policy: stability.md
     - Security: security.md

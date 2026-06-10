@@ -67,9 +67,24 @@ print(rt.tools.invoke("multiply", '{"a": 6, "b": 7}'))
 # {"ok": true, "result": 42}
 ```
 
+## Govern an existing MCP server (no code)
+
+You don't have to write a graph to use Marrow's governance. Put the
+[MCP gateway](concepts/gateway.md) in front of any MCP server your agent
+already uses — policy, least privilege, budgets, and a recorded trace, with
+zero changes to the agent or server:
+
+```console
+$ python examples/gateway/demo.py        # see it deny a destructive tool
+$ marrow-trace gateway_trace.json --open # read the flight-recorder report
+```
+
 ## What to read next
 
 - [Architecture](architecture.md) for the design rationale
+- [Compiler](concepts/compiler.md) for graph → ARI → RuntimePlan → trace
+- [MCP gateway](concepts/gateway.md) for governing existing agents
+- [Flight recorder](concepts/flight-recorder.md) for reading traces
 - [Tools](concepts/tools.md) for the full tool-registration story
 - [Providers](concepts/providers.md) for plugging in new LLMs
 - [Persistence](concepts/persistence.md) for surviving process restarts

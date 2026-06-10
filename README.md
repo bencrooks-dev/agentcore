@@ -84,6 +84,8 @@ See **[ARI-SPEC.md](ARI-SPEC.md)** for the contract and **[docs/ari-strategy.md]
 - **Policy-gated tool use** — agents request tools, the call is gated by `tool:` policy and restricted to the agent's declared tools, invoked through the C++ registry, and the result is fed back.
 - **Pluggable providers** — `mock` (keyless default), `openai` / `anthropic` / `ollama` built in, or bring-your-own via a factory.
 - **Multi-language frontends** — a Python frontend and a [TypeScript frontend](ts/) that emits **byte-identical** ARI (verified by a cross-language parity test).
+- **MCP governance gateway** — `marrow-gateway` puts policy, least privilege, and budgets in front of **any MCP server with zero changes to your agent**: blocked tools are hidden from discovery and denied at call time, and the session is recorded. See [`docs/concepts/gateway.md`](docs/concepts/gateway.md) and [`examples/gateway/`](examples/gateway/).
+- **Flight recorder** — `marrow-trace` renders any trace (compiler or gateway) as a self-contained HTML report: policy decisions, tool calls, budget burn, timeline. Also [hosted as a drop-zone page](https://bencrooks-dev.github.io/marrow/trace-viewer.html) — nothing is uploaded.
 
 **Runtime (ARI reference implementation):**
 

@@ -40,3 +40,7 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile
 compile_commands.json
+
+# gateway demo output
+gateway_trace.json
+gateway_trace.html
