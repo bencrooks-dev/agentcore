@@ -3,8 +3,8 @@
 The gateway applies Marrow's governance to **any MCP server, with zero changes
 to your agent or the server**. It is a transparent stdio proxy: your MCP client
 launches `marrow-gateway` instead of the real server, the gateway launches the
-real server, and traffic flows through untouched — except that tool use is
-governed and recorded.
+real server, and traffic flows through with its meaning intact — except that
+tool use is governed and recorded.
 
 ```
 MCP client (Claude Desktop, Claude Code, any agent)
@@ -19,16 +19,21 @@ MCP client (Claude Desktop, Claude Code, any agent)
 Two interceptions, nothing else:
 
 - **`tools/call`** — gated by the same
-  [`PolicyEngine`](../api/compiler.md) the compiler uses (`tool:<name>` actions;
-  `allow` / `deny` / `require_approval`), an optional tool **allowlist**, and a
-  **budget** (max calls, wall-clock). A blocked call never reaches the server;
-  the client receives an ordinary tool-error result explaining why.
+  [`PolicyEngine`](compiler.md#governance) the compiler uses (`tool:<name>`
+  actions; `allow` / `deny` / `require_approval`), an optional tool
+  **allowlist**, and a **budget** (max calls, wall-clock). A blocked call never
+  reaches the server; the client receives an ordinary tool-error result
+  explaining why (a blocked id-less *notification* call has no reply to carry
+  the reason — it is dropped and recorded).
 - **`tools/list`** — tools outside the allowlist, or statically denied by
-  policy, are removed from the listing. The agent never sees what it may not
-  call; if it calls one anyway, the call-time gate blocks it (defense in depth).
+  policy, are removed from the listing; approval-gated tools stay listed
+  because an approval may grant them at call time. Whatever the listing shows,
+  every call is re-checked at call time (defense in depth).
 
 Everything else — initialize, notifications, resources, prompts, server-initiated
-requests — passes through transparently.
+requests — passes through unmodified in meaning. (Client messages are forwarded
+re-encoded from the parsed JSON, so the gateway and the server can never
+disagree about what a message says.)
 
 ## Configure
 

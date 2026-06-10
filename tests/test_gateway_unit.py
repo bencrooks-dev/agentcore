@@ -235,6 +235,18 @@ def test_forwarded_messages_are_canonicalized():
     assert 31 in g._pending_calls
 
 
+def test_structured_request_id_is_dropped_not_crashed():
+    # JSON-RPC ids are strings or numbers; a dict id is unhashable and would
+    # otherwise TypeError the pump thread and wedge the session.
+    g = gw()
+    line = json.dumps(
+        {"jsonrpc": "2.0", "id": {"k": 1}, "method": "tools/call",
+         "params": {"name": "echo", "arguments": {}}}
+    ).encode()
+    assert g.handle_client_line(line) == []
+    assert any(e["type"] == "invalid_client_json" for e in g._trace["events"])
+
+
 def test_string_request_ids_round_trip():
     g = gw()
     [(dest, _)] = g.handle_client_line(call_line("req-7", "echo", {"text": "x"}))

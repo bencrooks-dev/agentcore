@@ -17,6 +17,11 @@ prompts, server-initiated requests — except:
 Fail-closed choices: a client line that is not valid JSON is dropped (not
 forwarded), and JSON-RPC batch arrays are rejected — a batch could smuggle a
 ``tools/call`` past per-message inspection. Both are recorded in the trace.
+
+The trace is rewritten in full after every recorded event (atomic tmp +
+``os.replace``). That is a deliberate trade: per-event durability is the flight
+recorder's promise, and gateway sessions are tool-call-paced; for very long
+sessions the O(trace) rewrite is the throughput ceiling, not the relay itself.
 """
 from __future__ import annotations
 
@@ -120,7 +125,16 @@ class Gateway:
         try:
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(self._trace, f, indent=2)
-            os.replace(tmp, self._cfg.trace_path)
+            for attempt in range(5):
+                try:
+                    os.replace(tmp, self._cfg.trace_path)
+                    break
+                except PermissionError:
+                    # Windows: a virus scanner / indexer can hold the freshly
+                    # written destination briefly; MoveFileEx then fails.
+                    if attempt == 4:
+                        raise
+                    time.sleep(0.02 * (attempt + 1))
         except OSError as exc:  # tracing must never take the proxy down
             print(f"marrow-gateway: cannot write trace: {exc}", file=sys.stderr)
 
@@ -130,12 +144,18 @@ class Gateway:
 
     def _preview(self, value: Any) -> str:
         text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+        # Bound the redaction pass: scrubbing runs in the relay path, so a
+        # multi-megabyte tool result must not stall the pipe. Pre-clip with a
+        # margin, scrub, then clip to the configured cap — the boundary risk
+        # (a secret split mid-token) is the same one the final cap already has.
+        limit = self._cfg.max_record_bytes
+        margin = text[: (limit + 4096) * 4]
         if self._cfg.redact:
-            text = _scrub_secrets(text)
-        data = text.encode("utf-8")
-        if len(data) <= self._cfg.max_record_bytes:
-            return text
-        clipped = data[: self._cfg.max_record_bytes].decode("utf-8", errors="ignore")
+            margin = _scrub_secrets(margin)
+        data = margin.encode("utf-8")
+        if len(data) <= limit and len(margin) == len(text):
+            return margin
+        clipped = data[:limit].decode("utf-8", errors="ignore")
         return clipped + "…[truncated]"
 
     # ----- gating ---------------------------------------------------------------
@@ -209,6 +229,11 @@ class Gateway:
 
         method = msg.get("method")
         msg_id = msg.get("id")
+        if msg_id is not None and not isinstance(msg_id, (str, int, float)):
+            # JSON-RPC ids are strings or numbers. A structured id would be
+            # unhashable for correlation — drop the message (fail closed).
+            self._event("invalid_client_json", reason="structured request id")
+            return []
 
         if method == "tools/call":
             params = msg.get("params") or {}
@@ -333,7 +358,13 @@ class Gateway:
         def pump_client_to_server() -> None:
             try:
                 for raw in self._client_in:
-                    for destination, line in self.handle_client_line(raw):
+                    try:
+                        actions = self.handle_client_line(raw)
+                    except Exception as exc:  # noqa: BLE001 — a handler bug must
+                        # fail CLOSED: drop the line rather than forward ungated.
+                        self._event("gateway_internal_error", kind=type(exc).__name__)
+                        continue
+                    for destination, line in actions:
                         if destination == "server":
                             self._child.stdin.write(line if line.endswith(b"\n") else line + b"\n")
                             self._child.stdin.flush()
@@ -345,12 +376,37 @@ class Gateway:
                 self._event("client_eof")
                 with contextlib.suppress(OSError):
                     self._child.stdin.close()
+                # The upstream owes us an exit after stdin EOF. Don't trust it —
+                # a server that ignores EOF would leak both processes forever.
+                try:
+                    self._child.wait(timeout=5.0)
+                except subprocess.TimeoutExpired:
+                    with contextlib.suppress(OSError):
+                        self._child.terminate()
+                    try:
+                        self._child.wait(timeout=2.0)
+                    except subprocess.TimeoutExpired:
+                        with contextlib.suppress(OSError):
+                            self._child.kill()
 
         def pump_server_to_client() -> None:
             try:
                 for raw in self._child.stdout:
-                    self._write_client(self.handle_server_line(raw))
-            except (BrokenPipeError, OSError):
+                    try:
+                        forwarded = self.handle_server_line(raw)
+                    except Exception as exc:  # noqa: BLE001 — never let a handler
+                        # bug stall the relay; pass the original line through.
+                        self._event("gateway_internal_error", kind=type(exc).__name__)
+                        forwarded = raw
+                    try:
+                        self._write_client(forwarded)
+                    except (BrokenPipeError, OSError):
+                        # Client gone: keep draining so the upstream can't block
+                        # forever on a full stdout pipe; it exits via stdin EOF.
+                        for _ in self._child.stdout:
+                            pass
+                        return
+            except OSError:
                 pass
 
         t_in = threading.Thread(target=pump_client_to_server, daemon=True)
@@ -367,6 +423,19 @@ class Gateway:
                 t["errors"].append(
                     {"kind": "UpstreamExited", "message": f"upstream exited with code {code}"}
                 )
+            # Calls that never got a response are forensic gold — the call that
+            # crashed the server must not vanish from the record.
+            for pending in self._pending_calls.values():
+                t["tool_calls"].append(
+                    {
+                        "tool": pending["tool"],
+                        "ok": False,
+                        "arguments": pending["arguments"],
+                        "result": "no response (upstream exited)",
+                        "elapsed_ms": int((time.monotonic() - pending["t0"]) * 1000),
+                    }
+                )
+            self._pending_calls.clear()
 
         self._record(_finish)
         return code

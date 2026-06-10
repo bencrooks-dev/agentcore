@@ -24,7 +24,7 @@ class GatewaySession:
             [sys.executable, "-m", "marrow.gateway", config_path],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=None,  # inherit: an unread stderr pipe could fill and wedge
         )
         self._lines: queue.Queue[bytes] = queue.Queue()
         self._reader = threading.Thread(target=self._pump, daemon=True)
@@ -161,6 +161,57 @@ def test_transparent_gateway_changes_nothing(tmp_path):
     assert trace["tools_hidden"] == []
     assert trace["policy_decisions"] == []
     assert trace["budget"]["limits"] == {"max_calls": None, "max_wall_ms": None}
+
+
+def test_upstream_exit_propagates_cleanly_while_client_stays_connected(tmp_path):
+    # Real MCP clients keep the gateway's stdin open for the whole session. When
+    # the upstream exits first, the gateway must exit with the upstream's code —
+    # not abort in interpreter shutdown over the still-blocked stdin reader.
+    config_path = tmp_path / "gateway.json"
+    config_path.write_text(
+        json.dumps({"upstream": [sys.executable, "-c", "pass"],
+                    "trace_path": str(tmp_path / "t.json")})
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "marrow.gateway", str(config_path)],
+        stdin=subprocess.PIPE,   # held open — the upstream dies first
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        out, err = proc.communicate(timeout=TIMEOUT)  # waits for exit, drains pipes
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+    assert proc.returncode == 0
+    assert b"Fatal Python error" not in err
+
+
+def test_eof_ignoring_upstream_is_terminated_on_client_disconnect(tmp_path):
+    # A server that ignores stdin EOF must not leak forever after the client
+    # disconnects; the gateway bounds the grace period and terminates it.
+    trace_path = tmp_path / "t.json"
+    config_path = tmp_path / "gateway.json"
+    config_path.write_text(
+        json.dumps({
+            "upstream": [sys.executable, "-c", "import time; time.sleep(120)"],
+            "trace_path": str(trace_path),
+        })
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "marrow.gateway", str(config_path)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=None,
+    )
+    proc.stdin.close()  # client disconnects immediately
+    try:
+        proc.wait(timeout=TIMEOUT)  # well under the 120s the upstream wants
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+    trace = json.loads(trace_path.read_text())
+    assert trace["final_status"] != "running"  # the record was finalized
 
 
 def test_gateway_rejects_bad_config(tmp_path):

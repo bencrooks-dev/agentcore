@@ -10,6 +10,7 @@ The config names the real server command; the gateway launches it, governs
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from .config import GatewayError, load_config
@@ -34,7 +35,20 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.trace:
         config.trace_path = args.trace
-    return Gateway(config).run()
+    code = Gateway(config).run()
+    # Real MCP clients keep our stdin open for the whole session, so when the
+    # upstream exits first the stdin pump thread is still blocked in a read,
+    # holding the BufferedReader's lock. Normal interpreter finalization then
+    # aborts ("Fatal Python error: _enter_buffered_busy", SIGABRT) instead of
+    # propagating the upstream's exit code. The trace is already durably
+    # flushed (atomic os.replace) and every client line is flushed at write
+    # time, so a hard exit loses nothing.
+    if os.name == "posix":
+        code &= 0xFF  # exit() semantics: low byte (a signal -N wraps to 256-N)
+    elif code >= 1 << 31:
+        code -= 1 << 32  # Windows NTSTATUS codes (e.g. 0xC0000005) as a C int
+    sys.stderr.flush()
+    os._exit(code)
 
 
 if __name__ == "__main__":

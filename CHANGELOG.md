@@ -19,7 +19,7 @@ All notable changes to `marrow` are documented here. The format follows [Keep a 
   A drop-zone variant is hosted on the docs site; rendering is fully local.
 - **Gateway trace schema** — `ari/schemas/gateway_trace.schema.json` (draft,
   non-normative), validated in the gateway end-to-end test.
-- **Demo** — [`examples/gateway/`](examples/gateway/): a small MCP file server,
+- **Demo** — [`examples/gateway/`](https://github.com/bencrooks-dev/marrow/tree/main/examples/gateway): a small MCP file server,
   a gateway config that denies the destructive tool, and a client that proves
   the deny (and that the server never saw the call).
 
@@ -40,7 +40,7 @@ All notable changes to `marrow` are documented here. The format follows [Keep a 
   The plan is now loaded by parsing JSON in C++, not marshalled field-by-field.
 - **Wall-clock budgets** — `BudgetSpec(max_wall_ms=…)` bounds total run time
   (pre-emptive, alongside `max_steps`).
-- **TypeScript frontend** — [`ts/`](ts/) emits ARI manifests identical to the
+- **TypeScript frontend** — [`ts/`](https://github.com/bencrooks-dev/marrow/tree/main/ts) emits ARI manifests identical to the
   Python frontend (parity test on `graph_id` + the manifest). CI builds and tests it.
 
 ### Added — compiler governance (experimental)
